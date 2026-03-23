@@ -1,0 +1,27 @@
+html{
+    background-color: #e0e0e0;
+}
+
+body {
+    padding: 0;
+    display: flex;
+}
+canvas{
+    box-sizing: border-box;
+    background-color: #131313;
+    width: 90%;
+    height: 96%;
+    border-radius: 5px;
+    margin: 1%;
+    display: block;
+}
+.tools{
+    padding: 2%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: auto;
+}
+.tool{
+    display: flex;
+}
