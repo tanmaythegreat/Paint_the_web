@@ -1,32 +1,97 @@
-html{
-    background-color: #e0e0e0;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-    padding: 0;
     display: flex;
+    height: 100vh;
+    background: #1e1e1e;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
 }
-canvas{
-    box-sizing: border-box;
-    background-color: #131313;
-    width: 90%;
-    height: 90%;
-    border-radius: 5px;
-    margin: 1%;
-}
-#canvas{
-    display: ;
-}
-#preview_canvas{
-    background : transparent;
-}
-.tools{
-    padding: 2%;
+
+.sidebar {
+    width: 10rem;
+    background: #2c2c2c;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    width: auto;
+    gap: 16px;
+    border-right: 2px solid #434343;
 }
-.tool{
+
+h2 {
+    font-weight: normal;
+    color: #dcdcdc;
+}
+h3 {
+    font-weight: normal;
+    color: #dcdcdc;
+}
+
+.tool-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tool {
+    padding: 10px;
+    border: none;
+    background: #3a3a3a;
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.tool:hover {
+    background: #505050;
+}
+
+.tool.active {
+    background: #0084ff;
+}
+
+.clear-btn {
+    margin-top: auto;
+    padding: 10px;
+    border: none;
+    background: #ff4d4d;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.clear-btn:hover {
+    background: #ff6666;
+}
+
+.canvas-container {
+    flex: 1;
+    position: relative;
+}
+main{
     display: flex;
 }
+
+canvas {
+    width: 90%;
+    height: 90%;
+    margin: 16px;
+    border-radius: 8px;
+    position: absolute;
+}
+.shapes button{
+    margin: 5px;
+}
+#canvas {
+    background: #121212;
+}
+
+#preview_canvas {
+    background: transparent;
+}
+

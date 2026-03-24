@@ -6,15 +6,34 @@
     <title>Paint the car</title>
 </head>
 <body>
-    <aside class="tools">
-        <button id="pencil" class="tool" title="Pencil" aria-label="Pencil tool" tabindex="0">Pencil</button>
-        <button id="eraser" class="tool" title="Eraser" aria-label="Eraser tool" tabindex="0">Eraser</button>
-        <button id="square" class="tool" title="Square" aria-label="Square tool" tabindex="0">Square</button>
+    <aside class="sidebar">
+        <h2>Tools</h2>
+        <section class="tools">
+            <button id="pencil" class="tool" title="Pencil" aria-label="Pencil tool" tabindex="0">Pencil</button>
+            <button id="eraser" class="tool" title="Eraser" aria-label="Eraser tool" tabindex="0">Eraser</button>
+        </section>
+        <h3>Shapes</h3>
+        <section class="shapes">
+            <button id="square" class="tool" title="Square" aria-label="Square tool" tabindex="0">Square</button>
+            <button id="circle" class="tool" title="circle" aria-label="Square tool" tabindex="0">Square</button>
+            <button id="line" class="tool" title="line" aria-label="Square tool" tabindex="0">Square</button>
+        </section>
+        <h3>Color</h3>
+        <label for="color-picker">
+            <input type="color" id="color-picker" value="#ffffff">
+        </label>
+        <label for="thickness">
+            <input type="range" id="thickness" value=10>
+        </label>
+        <button class="clear-btn" id="clearCanvas">Clear Canvas</button>
+
+
     </aside>
     <main class="main">
-        <canvas id="canvas" tabindex="0"></canvas>
+        <canvas id="canvas"></canvas>
         <canvas id="preview_canvas" tabindex="0"></canvas>
     </main>
     <script src="index.js"></script>
 </body>
 </html>
+
