@@ -145,6 +145,35 @@ function draw_line(stroke,ctx){
     ctx.lineTo(stroke.coords[1].x,stroke.coords[1].y);
     ctx.stroke();
 }
+function init_circle(event){
+    active = DrawMode.Circle;
+    preview_ctx.lineWidth = thickness;
+    preview_ctx.strokeStyle = color;
+    let x = scale_factorX*event.offsetX;
+    let y = scale_factorY*event.offsetY;
+    strokes.push({drawMode: DrawMode.Circle, color:preview_ctx.strokeStyle,thickness, coords: [{x,y},{x,y}]})
+}
+function drag_circle(event){
+    let circle_config = strokes[strokes.length-1];
+    circle_config.coords[1].x = scale_factorX*event.offsetX;
+    circle_config.coords[1].y = scale_factorY*event.offsetY;
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw_circle(circle_config,preview_ctx);
+}
+function end_circle(event){
+    drag_circle(event);
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw_circle(strokes[strokes.length-1],ctx)
+    active = DrawMode.None;
+    redoes.length = 0;
+}
+function draw_circle(stroke,ctx){
+    ctx.lineWidth = stroke.thickness;
+    ctx.strokeStyle = stroke.color;
+    ctx.beginPath();
+    ctx.arc((stroke.coords[0].x+stroke.coords[1].x)/2,(stroke.coords[0].y+stroke.coords[1].y)/2,Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2,0,Math.PI*2);
+    ctx.stroke();
+}
 function draw_square(stroke,ctx) {
     ctx.lineWidth = stroke.thickness;
     ctx.strokeStyle = stroke.color;
@@ -177,6 +206,9 @@ preview_canvas.addEventListener('mousedown',(e)=>{
         case DrawMode.Square:
             init_square(e);
             break;
+        case DrawMode.Circle:
+            init_circle(e);
+            break;
         case DrawMode.Line:
             init_line(e);
             break;
@@ -190,6 +222,9 @@ preview_canvas.addEventListener('mousemove',(e)=>{
         case DrawMode.Square:
             drag_square(e);
             break;
+        case DrawMode.Circle:
+            drag_circle(e);
+            break;
         case DrawMode.Line:
             drag_line(e);
             break;
@@ -202,6 +237,9 @@ function mouse_up_on_canvas_listener(e){
             break;
         case DrawMode.Square:
             end_square(e);
+            break;
+        case DrawMode.Circle:
+            end_circle(e);
             break;
         case DrawMode.Line:
             end_line(e);
@@ -237,6 +275,9 @@ function ReCreate(){
             case DrawMode.Square:
                 draw_square(stroke,ctx);
                 break;
+            case DrawMode.Circle:
+                draw_circle(stroke,ctx);
+                break;
             case DrawMode.Clear:
                 ctx.clearRect(0,0,canvas.width,canvas.height);
                 break;
@@ -262,6 +303,7 @@ function Redo(){
 pencil_btn = document.getElementById("pencil")
 eraser_btn = document.getElementById("eraser")
 square_btn = document.getElementById("square")
+circle_btn = document.getElementById("circle")
 line_btn = document.getElementById("line")
 
 pencil_btn.addEventListener('click',()=>{
@@ -273,7 +315,9 @@ eraser_btn.addEventListener('click',()=>{
 square_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Square;
 });
-line_btn.addEventListener('click',()=>{
+circle_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Circle;
+});line_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Line;
 });
 
