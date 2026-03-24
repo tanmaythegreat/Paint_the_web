@@ -5,7 +5,9 @@ let DrawMode = {
     Pencil:1,
     Eraser:2,
     Square:3,
-    Circle:4
+    Circle:4,
+    Line:5,
+    Clear:6,
 }
 let color = '#f0f0f0';
 let currentMode = DrawMode.Pencil;
@@ -76,11 +78,9 @@ function draw_pencil(stroke){
     ctx.lineWidth = stroke.coords[0].thickness;
     ctx.strokeStyle = stroke.color;
     ctx.beginPath();
-    console.log(stroke);
-    ctx.strokeStyle = stroke.color;
     ctx.moveTo(stroke.coords[0].x,stroke.coords.y)
     ctx.lineWidth = stroke.coords[0].thickness;
-    for (let i = 1; i < stroke.coords.length; i++) {
+    for (let i = 0; i < stroke.coords.length; i++) {
         ctx.lineWidth = stroke.coords[i].thickness;
         ctx.lineTo(stroke.coords[i].x,stroke.coords[i].y);
     }
@@ -115,6 +115,36 @@ function end_square(event){
     active = DrawMode.None;
     redoes.length = 0;
 }
+function init_line(event){
+    active = DrawMode.Line;
+    preview_ctx.lineWidth = thickness;
+    preview_ctx.strokeStyle = color;
+    let x = scale_factorX*event.offsetX;
+    let y = scale_factorY*event.offsetY;
+    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness},{x,y,thickness}]})
+}
+function drag_line(event){
+    let line_config = strokes[strokes.length-1];
+    line_config.coords[1].x = scale_factorX*event.offsetX;
+    line_config.coords[1].y = scale_factorY*event.offsetY;
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw_line(line_config,preview_ctx);
+}
+function end_line(event){
+    drag_line(event);
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw_line(strokes[strokes.length-1],ctx)
+    active = DrawMode.None;
+    redoes.length = 0;
+}
+function draw_line(stroke,ctx){
+    ctx.lineWidth = stroke.coords[0].thickness;
+    ctx.strokeStyle = stroke.color;
+    ctx.beginPath();
+    ctx.moveTo(stroke.coords[0].x,stroke.coords[0].y);
+    ctx.lineTo(stroke.coords[1].x,stroke.coords[1].y);
+    ctx.stroke();
+}
 function draw_square(stroke,ctx) {
     ctx.lineWidth = stroke.thickness;
     ctx.strokeStyle = stroke.color;
@@ -129,6 +159,7 @@ function draw_square(stroke,ctx) {
     ctx.stroke();
     ctx.closePath();
 }
+
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
 preview_canvas.addEventListener('mousedown',(e)=>{
     let rect = canvas.getBoundingClientRect();
@@ -146,6 +177,9 @@ preview_canvas.addEventListener('mousedown',(e)=>{
         case DrawMode.Square:
             init_square(e);
             break;
+        case DrawMode.Line:
+            init_line(e);
+            break;
     }
 });
 preview_canvas.addEventListener('mousemove',(e)=>{
@@ -156,6 +190,9 @@ preview_canvas.addEventListener('mousemove',(e)=>{
         case DrawMode.Square:
             drag_square(e);
             break;
+        case DrawMode.Line:
+            drag_line(e);
+            break;
     }
 });
 function mouse_up_on_canvas_listener(e){
@@ -163,12 +200,11 @@ function mouse_up_on_canvas_listener(e){
         case DrawMode.Pencil:
             end_pencil(e);
             break;
-        case DrawMode.Eraser:
-            end_pencil(e);
-            break;
         case DrawMode.Square:
             end_square(e);
             break;
+        case DrawMode.Line:
+            end_line(e);
     }
 }
 preview_canvas.addEventListener('mouseup',mouse_up_on_canvas_listener);
@@ -183,15 +219,14 @@ preview_canvas.addEventListener('keydown',function shortcuts(event)
         }
     }
     else if (event.key==="Escape" && strokes.length>0){
-        preview_ctx.closePath();
         strokes.pop();
+        active = DrawMode.None;
         preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     }
 });
 
 
 function ReCreate(){
-    console.log("Recreate")
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     for (let stroke of strokes) {
@@ -202,20 +237,21 @@ function ReCreate(){
             case DrawMode.Square:
                 draw_square(stroke,ctx);
                 break;
+            case DrawMode.Clear:
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                break;
         }
     }
 }
 
 function Undo(){
     if (strokes.length>0) {
-        console.log("UNDO")
         redoes.push(strokes.pop());
         ReCreate();
     }
 }
 function Redo(){
     if (redoes.length>0) {
-        console.log("REDO")
         strokes.push(redoes.pop());
         ReCreate();
     }
@@ -226,17 +262,34 @@ function Redo(){
 pencil_btn = document.getElementById("pencil")
 eraser_btn = document.getElementById("eraser")
 square_btn = document.getElementById("square")
+line_btn = document.getElementById("line")
 
 pencil_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Pencil;
-    console.log("Changed to pencil")
 });
 eraser_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Eraser;
-    console.log("Changed to eraser")
 });
 square_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Square;
-    console.log("Changed to eraser")
 });
+line_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Line;
+});
+
+let clear_btn = document.getElementById("clearCanvas");
+clear_btn.addEventListener('click',()=>{
+    strokes.push({drawMode:DrawMode.Clear});
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    preview_canvas.focus();
+})
+
+let thickness_slider = document.getElementById("thickness");
+thickness_slider.addEventListener('input',(inp)=>{
+    thickness = inp.target.value
+});
+let color_picker = document.getElementById("color-picker");
+color_picker.addEventListener('input',(inp)=>{
+    color = inp.target.value
+})
 //endregion
