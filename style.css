@@ -10,10 +10,15 @@ canvas{
     box-sizing: border-box;
     background-color: #131313;
     width: 90%;
-    height: 96%;
+    height: 90%;
     border-radius: 5px;
     margin: 1%;
-    display: block;
+}
+#canvas{
+    display: ;
+}
+#preview_canvas{
+    background : transparent;
 }
 .tools{
     padding: 2%;
