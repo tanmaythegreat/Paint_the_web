@@ -13,7 +13,7 @@ body {
 }
 
 .sidebar {
-    width: 10rem;
+    width: 12rem;
     background: #2c2c2c;
     padding: 16px;
     display: flex;
@@ -77,8 +77,8 @@ main{
 }
 
 canvas {
-    width: 90%;
-    height: 90%;
+    width: 85%;
+    height: 85%;
     margin: 16px;
     border-radius: 8px;
     position: absolute;
@@ -103,3 +103,13 @@ canvas {
     display: none;
 }
 
+.shapes label input{
+    margin: 10px;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 2px;
+}
+.sidebar label input[type="range"]{
+    pointer-events: all;
+    z-index: 10;
+}

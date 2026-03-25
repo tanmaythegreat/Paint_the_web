@@ -17,13 +17,22 @@
             <button id="square" class="tool" title="Square" aria-label="Square tool" tabindex="0">Square</button>
             <button id="circle" class="tool" title="circle" aria-label="Square tool" tabindex="0">Circle</button>
             <button id="line" class="tool" title="line" aria-label="Square tool" tabindex="0">Line</button>
+            <br>
+            <label>Fill shapes?<input type="checkbox" id="fill-checkbox"></label>
+
         </section>
         <h3>Color</h3>
         <label for="color-picker">
+            Stroke color
             <input type="color" id="color-picker" value="#ffffff">
         </label>
+        <label for="fill-color-picker">
+            Fill color
+            <input type="color" id="fill-color-picker" value="#ffffff">
+        </label>
         <label for="thickness">
-            <input type="range" id="thickness" value=10>
+            Stroke thickness
+            <input type="range" id="thickness" min="0" max="100" value=10">
         </label>
         <h3>Background color</h3>
         <label for="color-picker">

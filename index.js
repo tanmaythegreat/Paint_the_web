@@ -10,9 +10,9 @@ const DrawMode = {
     Clear:6,
 }
 let color = '#f0f0f0';
+let fill_color = '#f0f0f0';
 let currentMode = DrawMode.Pencil;
 const Res = 4;
-let thickness = Res*5
 const speed_offset = 10000;
 const speed_scale = 10000;
 //endregion
@@ -51,12 +51,12 @@ let active = DrawMode.None;
 
 function init_pencil(event,erase){
     active = DrawMode.Pencil;
-    preview_ctx.lineWidth = thickness;
-    if (erase) {preview_ctx.strokeStyle=getComputedStyle(canvas).backgroundColor; preview_ctx.lineWidth=thickness*10;  } else {preview_ctx.strokeStyle = color;}
+    preview_ctx.lineWidth = thickness_slider.value;
+    if (erase) {preview_ctx.strokeStyle=getComputedStyle(canvas).backgroundColor; preview_ctx.lineWidth=thickness_slider.value*10;  } else {preview_ctx.strokeStyle = color;}
     preview_ctx.beginPath();
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness}]})
+    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value}]})
     preview_ctx.moveTo(x,y);
     preview_ctx.stroke();
 }
@@ -89,11 +89,11 @@ function draw_pencil(stroke){
 }
 function init_square(event){
     active = DrawMode.Square;
-    preview_ctx.lineWidth = thickness;
+    preview_ctx.lineWidth = thickness_slider.value;
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    const sq_config = {drawMode: DrawMode.Square,color,thickness,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
+    const sq_config = {drawMode: DrawMode.Square,fill_color,color,fill:fill_checkbox.checked,thickness:thickness_slider.value,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
     strokes.push(sq_config);
 }
 function drag_square(event){
@@ -118,11 +118,11 @@ function end_square(event){
 }
 function init_line(event){
     active = DrawMode.Line;
-    preview_ctx.lineWidth = thickness;
+    preview_ctx.lineWidth = thickness_slider.value;
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness},{x,y,thickness}]})
+    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value},{x,y,thickness:thickness_slider.value}]})
 }
 function drag_line(event){
     const line_config = strokes[strokes.length-1];
@@ -148,11 +148,11 @@ function draw_line(stroke,ctx){
 }
 function init_circle(event){
     active = DrawMode.Circle;
-    preview_ctx.lineWidth = thickness;
+    preview_ctx.lineWidth = thickness_slider.value;
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Circle, color:preview_ctx.strokeStyle,thickness, coords: [{x,y},{x,y}]})
+    strokes.push({drawMode: DrawMode.Circle,fill_color, color:preview_ctx.strokeStyle,fill:fill_checkbox.checked,thickness:thickness_slider.value, coords: [{x,y},{x,y}]})
 }
 function drag_circle(event){
     const circle_config = strokes[strokes.length-1];
@@ -171,13 +171,20 @@ function end_circle(event){
 function draw_circle(stroke,ctx){
     ctx.lineWidth = stroke.thickness;
     ctx.strokeStyle = stroke.color;
+    ctx.fillStyle = stroke.fill_color;
     ctx.beginPath();
     ctx.arc((stroke.coords[0].x+stroke.coords[1].x)/2,(stroke.coords[0].y+stroke.coords[1].y)/2,Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2,0,Math.PI*2);
+    ctx.closePath();
+    if (stroke.fill) {
+        ctx.fill();
+    }
     ctx.stroke();
+
 }
 function draw_square(stroke,ctx) {
     ctx.lineWidth = stroke.thickness;
     ctx.strokeStyle = stroke.color;
+    ctx.fillStyle = stroke.fill_color;
     ctx.beginPath();
     ctx.strokeStyle = stroke.color;
     ctx.lineWidth = stroke.thickness;
@@ -186,8 +193,11 @@ function draw_square(stroke,ctx) {
     ctx.lineTo(stroke.x3, stroke.y3);
     ctx.lineTo(stroke.x4, stroke.y4);
     ctx.lineTo(stroke.x1, stroke.y1);
-    ctx.stroke();
     ctx.closePath();
+    if (stroke.fill) {
+        ctx.fill()
+    }
+    ctx.stroke();
 }
 
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
@@ -232,10 +242,10 @@ preview_canvas.addEventListener('mousemove',(e)=>{
     }
     if (currentMode===DrawMode.Eraser){
         eraser_cursor.style.display = 'flex';
-        eraser_cursor.style.left = e.x+'px';
-        eraser_cursor.style.top = e.y+'px';
-        eraser_cursor.style.width = 10*thickness/Res+'px';
-        eraser_cursor.style.height =10*thickness/Res+'px';
+        eraser_cursor.style.left = e.clientX+'px';
+        eraser_cursor.style.top = e.clientY+'px';
+        eraser_cursor.style.width = 10*thickness_slider.value/Res+'px';
+        eraser_cursor.style.height =10*thickness_slider.value/Res+'px';
     }
     else{
         eraser_cursor.style.display = 'none';
@@ -331,11 +341,13 @@ square_btn.addEventListener('click',()=>{
 circle_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Circle;
     preview_canvas.style.cursor = "crosshair"
-});line_btn.addEventListener('click',()=>{
+});
+line_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Line;
     preview_canvas.style.cursor = "crosshair"
 
 });
+
 
 const clear_btn = document.getElementById("clearCanvas");
 clear_btn.addEventListener('click',()=>{
@@ -345,17 +357,18 @@ clear_btn.addEventListener('click',()=>{
 })
 
 const thickness_slider = document.getElementById("thickness");
-thickness_slider.addEventListener('input',(inp)=>{
-    thickness = inp.target.value
-});
 const color_picker = document.getElementById("color-picker");
 color_picker.addEventListener('input',(inp)=>{
-    color = inp.target.value
+    color = color_picker.value
+})
+const fill_picker = document.getElementById("fill-color-picker");
+fill_picker.addEventListener('input',(inp)=>{
+    fill_color = fill_picker.value
 })
 const bg_picker = document.getElementById("bg-picker");
 bg_picker.addEventListener('input',(inp)=>{
-    canvas.style.backgroundColor = inp.target.value;
+    canvas.style.backgroundColor = bg_picker.value;
 })
 
-
+const fill_checkbox = document.getElementById("fill-checkbox");
 //endregion
