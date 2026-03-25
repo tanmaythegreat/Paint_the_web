@@ -25,6 +25,10 @@
         <label for="thickness">
             <input type="range" id="thickness" value=10>
         </label>
+        <h3>Background color</h3>
+        <label for="color-picker">
+            <input type="color" id="bg-picker" value="#ffffff">
+        </label>
         <button class="clear-btn" id="clearCanvas">Clear Canvas</button>
 
 
@@ -32,6 +36,7 @@
     <main class="main">
         <canvas id="canvas"></canvas>
         <canvas id="preview_canvas" tabindex="0"></canvas>
+        <img id="eraser-cursor" src="images/circle.png" alt="none">
     </main>
     <script src="index.js"></script>
 </body>

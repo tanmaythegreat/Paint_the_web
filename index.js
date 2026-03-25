@@ -1,6 +1,6 @@
 
 //region Drawing Settings
-let DrawMode = {
+const DrawMode = {
     None : 0,
     Pencil:1,
     Eraser:2,
@@ -11,7 +11,7 @@ let DrawMode = {
 }
 let color = '#f0f0f0';
 let currentMode = DrawMode.Pencil;
-const Res = 5;
+const Res = 4;
 let thickness = Res*5
 const speed_offset = 10000;
 const speed_scale = 10000;
@@ -24,8 +24,9 @@ function getSquare_from_diagonal(x1,y1,x3,y3){
 //endregion
 
 //region Canvas
-let canvas = document.getElementById("canvas");
-let preview_canvas = document.getElementById("preview_canvas");
+const eraser_cursor = document.getElementById('eraser-cursor');
+const canvas = document.getElementById("canvas");
+const preview_canvas = document.getElementById("preview_canvas");
 
 canvas.width = Res * screen.width;
 canvas.height = Res * screen.height;
@@ -35,35 +36,35 @@ preview_canvas.height = Res * screen.height;
 
 
 /** @type {CanvasRenderingContext2D} */
-let ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d');
 ctx.lineJoin = "round"
 ctx.lineCap = "round"
 
 /** @type {CanvasRenderingContext2D} */
-let preview_ctx = preview_canvas.getContext('2d');
+const preview_ctx = preview_canvas.getContext('2d');
 preview_ctx.lineJoin = "round"
 preview_ctx.lineCap = "round"
 
-let strokes = []; //array of strokes each element is a object which contains DrawMode etc
-let redoes = [];
+const strokes = []; //array of strokes each element is a object which contains DrawMode etc
+const redoes = [];
 let active = DrawMode.None;
 
 function init_pencil(event,erase){
     active = DrawMode.Pencil;
     preview_ctx.lineWidth = thickness;
-    if (erase) {preview_ctx.strokeStyle=getComputedStyle(canvas).backgroundColor; preview_ctx.lineWidth*=10;  } else {preview_ctx.strokeStyle = color;}
+    if (erase) {preview_ctx.strokeStyle=getComputedStyle(canvas).backgroundColor; preview_ctx.lineWidth=thickness*10;  } else {preview_ctx.strokeStyle = color;}
     preview_ctx.beginPath();
-    let x = scale_factorX*event.offsetX;
-    let y = scale_factorY*event.offsetY;
+    const x = scale_factorX*event.offsetX;
+    const y = scale_factorY*event.offsetY;
     strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness}]})
     preview_ctx.moveTo(x,y);
     preview_ctx.stroke();
 }
 function drag_pencil(event){
-    let speed = Math.pow(scale_factorX*event.movementX,2)+Math.pow(event.movementY*scale_factorY,2);
+    const speed = Math.pow(scale_factorX*event.movementX,2)+Math.pow(event.movementY*scale_factorY,2);
     //ctx.lineWidth = thickness//*(Math.atanh((speed_offset-speed)/speed_scale)/Math.PI);
-    let x = scale_factorX*(event.offsetX);
-    let y = scale_factorY*(event.offsetY);
+    const x = scale_factorX*(event.offsetX);
+    const y = scale_factorY*(event.offsetY);
     strokes[strokes.length-1].coords.push({x,y,thickness:preview_ctx.lineWidth});
     preview_ctx.lineTo(x,y);
     preview_ctx.stroke();
@@ -90,17 +91,17 @@ function init_square(event){
     active = DrawMode.Square;
     preview_ctx.lineWidth = thickness;
     preview_ctx.strokeStyle = color;
-    let x = scale_factorX*event.offsetX;
-    let y = scale_factorY*event.offsetY;
-    let sq_config = {drawMode: DrawMode.Square,color,thickness,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
+    const x = scale_factorX*event.offsetX;
+    const y = scale_factorY*event.offsetY;
+    const sq_config = {drawMode: DrawMode.Square,color,thickness,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
     strokes.push(sq_config);
 }
 function drag_square(event){
-    let sq_config = strokes[strokes.length-1];
+    const sq_config = strokes[strokes.length-1];
     sq_config.x3 = scale_factorX*event.offsetX;
     sq_config.y3 = scale_factorY*event.offsetY;
 
-    let points = getSquare_from_diagonal(sq_config.x1,sq_config.y1,sq_config.x3,sq_config.y3);
+    const points = getSquare_from_diagonal(sq_config.x1,sq_config.y1,sq_config.x3,sq_config.y3);
     sq_config.x2 = points.x2;
     sq_config.y2 = points.y2;
     sq_config.x4 = points.x4;
@@ -119,12 +120,12 @@ function init_line(event){
     active = DrawMode.Line;
     preview_ctx.lineWidth = thickness;
     preview_ctx.strokeStyle = color;
-    let x = scale_factorX*event.offsetX;
-    let y = scale_factorY*event.offsetY;
+    const x = scale_factorX*event.offsetX;
+    const y = scale_factorY*event.offsetY;
     strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness},{x,y,thickness}]})
 }
 function drag_line(event){
-    let line_config = strokes[strokes.length-1];
+    const line_config = strokes[strokes.length-1];
     line_config.coords[1].x = scale_factorX*event.offsetX;
     line_config.coords[1].y = scale_factorY*event.offsetY;
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
@@ -149,12 +150,12 @@ function init_circle(event){
     active = DrawMode.Circle;
     preview_ctx.lineWidth = thickness;
     preview_ctx.strokeStyle = color;
-    let x = scale_factorX*event.offsetX;
-    let y = scale_factorY*event.offsetY;
+    const x = scale_factorX*event.offsetX;
+    const y = scale_factorY*event.offsetY;
     strokes.push({drawMode: DrawMode.Circle, color:preview_ctx.strokeStyle,thickness, coords: [{x,y},{x,y}]})
 }
 function drag_circle(event){
-    let circle_config = strokes[strokes.length-1];
+    const circle_config = strokes[strokes.length-1];
     circle_config.coords[1].x = scale_factorX*event.offsetX;
     circle_config.coords[1].y = scale_factorY*event.offsetY;
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
@@ -191,7 +192,7 @@ function draw_square(stroke,ctx) {
 
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
 preview_canvas.addEventListener('mousedown',(e)=>{
-    let rect = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     canvas_left = rect.left;
     canvas_top = rect.top;
     scale_factorX = canvas.width/rect.width;
@@ -229,6 +230,16 @@ preview_canvas.addEventListener('mousemove',(e)=>{
             drag_line(e);
             break;
     }
+    if (currentMode===DrawMode.Eraser){
+        eraser_cursor.style.display = 'flex';
+        eraser_cursor.style.left = e.x+'px';
+        eraser_cursor.style.top = e.y+'px';
+        eraser_cursor.style.width = 10*thickness/Res+'px';
+        eraser_cursor.style.height =10*thickness/Res+'px';
+    }
+    else{
+        eraser_cursor.style.display = 'none';
+    }
 });
 function mouse_up_on_canvas_listener(e){
     switch (active){
@@ -263,11 +274,10 @@ preview_canvas.addEventListener('keydown',function shortcuts(event)
     }
 });
 
-
-function ReCreate(){
+function recreate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    for (let stroke of strokes) {
+    for (const stroke of strokes) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
                 draw_pencil(stroke);
@@ -288,13 +298,13 @@ function ReCreate(){
 function Undo(){
     if (strokes.length>0) {
         redoes.push(strokes.pop());
-        ReCreate();
+        recreate();
     }
 }
 function Redo(){
     if (redoes.length>0) {
         strokes.push(redoes.pop());
-        ReCreate();
+        recreate();
     }
 }
 //endregion
@@ -308,32 +318,44 @@ line_btn = document.getElementById("line")
 
 pencil_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Pencil;
+    preview_canvas.style.cursor  = "url('images/pencil.png') 0 64,auto";
 });
 eraser_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Eraser;
+    preview_canvas.style.cursor  = "url('images/eraser.png') 15 50,auto";
 });
 square_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Square;
+    preview_canvas.style.cursor = "crosshair"
 });
 circle_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Circle;
+    preview_canvas.style.cursor = "crosshair"
 });line_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Line;
+    preview_canvas.style.cursor = "crosshair"
+
 });
 
-let clear_btn = document.getElementById("clearCanvas");
+const clear_btn = document.getElementById("clearCanvas");
 clear_btn.addEventListener('click',()=>{
     strokes.push({drawMode:DrawMode.Clear});
     ctx.clearRect(0,0,canvas.width,canvas.height);
     preview_canvas.focus();
 })
 
-let thickness_slider = document.getElementById("thickness");
+const thickness_slider = document.getElementById("thickness");
 thickness_slider.addEventListener('input',(inp)=>{
     thickness = inp.target.value
 });
-let color_picker = document.getElementById("color-picker");
+const color_picker = document.getElementById("color-picker");
 color_picker.addEventListener('input',(inp)=>{
     color = inp.target.value
 })
+const bg_picker = document.getElementById("bg-picker");
+bg_picker.addEventListener('input',(inp)=>{
+    canvas.style.backgroundColor = inp.target.value;
+})
+
+
 //endregion

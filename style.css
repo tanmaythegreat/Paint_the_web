@@ -92,5 +92,14 @@ canvas {
 
 #preview_canvas {
     background: transparent;
+    cursor: url("images/pencil.png") 0 64,auto;
+}
+
+#eraser-cursor {
+    position: absolute;
+    pointer-events: none;
+    transform: translate(-50%, -50%); /* center on cursor */
+    z-index: 9999;
+    display: none;
 }
 
