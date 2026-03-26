@@ -3,32 +3,59 @@
     padding: 0;
     box-sizing: border-box;
 }
+:root {
+    --bg: #1e1e1e;
+    --sidebar: #2c2c2c;
+    --border: #434343;
+    --text: #ffffff;
+    --subtext: #dcdcdc;
+    --tool: #3a3a3a;
+    --tool-hover: #505050;
+    --active: #0084ff;
+    --danger: #ff4d4d;
+    --danger-hover: #ff6666;
+    --canvas-bg: #121212;
+}
+
+body.light-mode {
+    --bg: #f5f5f5;
+    --sidebar: #f3f3f3;
+    --border: #cccccc;
+    --text: #111111;
+    --subtext: #333333;
+    --tool: #e0e0e0;
+    --tool-hover: #d0d0d0;
+    --active: #007bff;
+    --danger: #e53935;
+    --danger-hover: #ef5350;
+}
 
 body {
     display: flex;
     height: 100vh;
-    background: #1e1e1e;
-    color: #ffffff;
+    background: var(--bg);
+    color: var(--text);
     font-family: Arial, sans-serif;
+}
+
+main {
+    display: flex;
+    width: 100%;
 }
 
 .sidebar {
     width: 12rem;
-    background: #2c2c2c;
+    background: var(--sidebar);
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    border-right: 2px solid #434343;
+    border-right: 2px solid var(--border);
 }
 
-h2 {
+h2, h3 {
     font-weight: normal;
-    color: #dcdcdc;
-}
-h3 {
-    font-weight: normal;
-    color: #dcdcdc;
+    color: var(--subtext);
 }
 
 .tool-group {
@@ -40,40 +67,37 @@ h3 {
 .tool {
     padding: 10px;
     border: none;
-    background: #3a3a3a;
-    color: white;
+    background: var(--tool);
+    color: var(--text);
     cursor: pointer;
     border-radius: 6px;
-    transition: 0.2s;
+    transition: background 0.2s;
 }
 
 .tool:hover {
-    background: #505050;
+    background: var(--tool-hover);
 }
 
 .tool.active {
-    background: #0084ff;
+    background: var(--active);
 }
 
 .clear-btn {
     margin-top: auto;
     padding: 10px;
     border: none;
-    background: #ff4d4d;
+    background: var(--danger);
     color: white;
     border-radius: 6px;
+    cursor: pointer;
 }
 
 .clear-btn:hover {
-    background: #ff6666;
+    background: var(--danger-hover);
 }
-
 .canvas-container {
     flex: 1;
     position: relative;
-}
-main{
-    display: flex;
 }
 
 canvas {
@@ -83,33 +107,35 @@ canvas {
     border-radius: 8px;
     position: absolute;
 }
-.shapes button{
-    margin: 5px;
-}
+
 #canvas {
-    background: #121212;
+    background: var(--canvas-bg);
 }
 
 #preview_canvas {
     background: transparent;
-    cursor: url("images/pencil.png") 0 64,auto;
+    cursor: url("images/pencil.png") 0 64, auto;
 }
 
 #eraser-cursor {
     position: absolute;
     pointer-events: none;
-    transform: translate(-50%, -50%); /* center on cursor */
+    transform: translate(-50%, -50%);
     z-index: 9999;
     display: none;
 }
 
-.shapes label input{
+.shapes button {
+    margin: 5px;
+}
+
+.shapes label input {
     margin: 10px;
     width: 1rem;
     height: 1rem;
     border-radius: 2px;
 }
-.sidebar label input[type="range"]{
+.sidebar label input[type="range"] {
     pointer-events: all;
     z-index: 10;
 }

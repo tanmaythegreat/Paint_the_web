@@ -50,13 +50,18 @@ const redoes = [];
 let active = DrawMode.None;
 
 function init_pencil(event,erase){
-    active = DrawMode.Pencil;
+    if (erase){
+        active = DrawMode.Eraser;
+    }else{
+        active = DrawMode.Pencil;
+    }
+    const dm = active;
     preview_ctx.lineWidth = thickness_slider.value;
     if (erase) {preview_ctx.strokeStyle=getComputedStyle(canvas).backgroundColor; preview_ctx.lineWidth=thickness_slider.value*10;  } else {preview_ctx.strokeStyle = color;}
     preview_ctx.beginPath();
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value}]})
+    strokes.push({drawMode: dm, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value}]})
     preview_ctx.moveTo(x,y);
     preview_ctx.stroke();
 }
@@ -77,9 +82,10 @@ function end_pencil(event){
 }
 function draw_pencil(stroke){
     ctx.lineWidth = stroke.coords[0].thickness;
-    ctx.strokeStyle = stroke.color;
+    if (stroke.drawMode===DrawMode.Eraser){ctx.strokeStyle=getComputedStyle(canvas).backgroundColor;
+    console.log("its eraser!");}else{ctx.strokeStyle = stroke.color;}
     ctx.beginPath();
-    ctx.moveTo(stroke.coords[0].x,stroke.coords.y)
+    ctx.moveTo(stroke.coords[0].x,stroke.coords[0].y)
     ctx.lineWidth = stroke.coords[0].thickness;
     for (let i = 0; i < stroke.coords.length; i++) {
         ctx.lineWidth = stroke.coords[i].thickness;
@@ -230,6 +236,9 @@ preview_canvas.addEventListener('mousemove',(e)=>{
         case DrawMode.Pencil:
             drag_pencil(e);
             break;
+        case DrawMode.Eraser:
+            drag_pencil(e);
+            break;
         case DrawMode.Square:
             drag_square(e);
             break;
@@ -254,6 +263,9 @@ preview_canvas.addEventListener('mousemove',(e)=>{
 function mouse_up_on_canvas_listener(e){
     switch (active){
         case DrawMode.Pencil:
+            end_pencil(e);
+            break;
+        case DrawMode.Eraser:
             end_pencil(e);
             break;
         case DrawMode.Square:
@@ -290,6 +302,9 @@ function recreate(){
     for (const stroke of strokes) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
+                draw_pencil(stroke);
+                break;
+            case DrawMode.Eraser:
                 draw_pencil(stroke);
                 break;
             case DrawMode.Square:
@@ -359,7 +374,7 @@ clear_btn.addEventListener('click',()=>{
 const thickness_slider = document.getElementById("thickness");
 const color_picker = document.getElementById("color-picker");
 color_picker.addEventListener('input',(inp)=>{
-    color = color_picker.value
+    color = color_picker.value;
 })
 const fill_picker = document.getElementById("fill-color-picker");
 fill_picker.addEventListener('input',(inp)=>{
@@ -368,7 +383,13 @@ fill_picker.addEventListener('input',(inp)=>{
 const bg_picker = document.getElementById("bg-picker");
 bg_picker.addEventListener('input',(inp)=>{
     canvas.style.backgroundColor = bg_picker.value;
+    recreate();
 })
 
 const fill_checkbox = document.getElementById("fill-checkbox");
+
+const theme_toggle_btn = document.getElementById('theme-toggle');
+theme_toggle_btn.addEventListener('click',(e)=>{
+    document.body.classList.toggle('light-mode');
+});
 //endregion
