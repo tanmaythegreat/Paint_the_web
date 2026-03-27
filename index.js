@@ -8,6 +8,7 @@ const DrawMode = {
     Circle:4,
     Line:5,
     Clear:6,
+    Text: 7,
 }
 let color = '#f0f0f0';
 let fill_color = '#f0f0f0';
@@ -17,16 +18,12 @@ const speed_offset = 10000;
 const speed_scale = 10000;
 //endregion
 
-//region Coordinate-geometry
-function getSquare_from_diagonal(x1,y1,x3,y3){
-    return {x2:(x1+x3+y1-y3)/2,y2:(y1+y3+x3-x1)/2,x4:(x1+x3-y1+y3)/2,y4:(y1+y3-x3+x1)/2}
-}
-//endregion
 
-//region Canvas
+//region Canvas init
 const eraser_cursor = document.getElementById('eraser-cursor');
 const canvas = document.getElementById("canvas");
 const preview_canvas = document.getElementById("preview_canvas");
+const main = document.querySelector('main');
 
 canvas.width = Res * screen.width;
 canvas.height = Res * screen.height;
@@ -45,10 +42,104 @@ const preview_ctx = preview_canvas.getContext('2d');
 preview_ctx.lineJoin = "round"
 preview_ctx.lineCap = "round"
 
-const strokes = []; //array of strokes each element is a object which contains DrawMode etc
-const redoes = [];
+window.addEventListener("beforeunload",()=>{
+    localStorage.setItem("redoes",JSON.stringify(redoes));
+    localStorage.setItem("strokes",JSON.stringify(strokes));
+    localStorage.setItem("bg-color",bg_picker.value);
+});
 let active = DrawMode.None;
+//endregion
 
+//region Tools
+pencil_btn = document.getElementById("pencil")
+eraser_btn = document.getElementById("eraser")
+square_btn = document.getElementById("square")
+circle_btn = document.getElementById("circle")
+line_btn = document.getElementById("line")
+text_btn = document.getElementById("text")
+
+pencil_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Pencil;
+    preview_canvas.style.cursor  = "url('images/pencil.png') 0 64,auto";
+});
+eraser_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Eraser;
+    preview_canvas.style.cursor  = "url('images/eraser.png') 15 50,auto";
+});
+square_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Square;
+    preview_canvas.style.cursor = "crosshair"
+});
+circle_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Circle;
+    preview_canvas.style.cursor = "crosshair"
+});
+line_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Line;
+    preview_canvas.style.cursor = "crosshair"
+
+});
+text_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Text;
+    preview_canvas.style.cursor = "crosshair"
+
+});
+
+
+const clear_btn = document.getElementById("clearCanvas");
+clear_btn.addEventListener('click',()=>{
+    strokes.push({drawMode:DrawMode.Clear});
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    preview_canvas.focus();
+})
+const permanent_clear_btn = document.getElementById("permanent_clearCanvas");
+permanent_clear_btn.addEventListener('click',()=>{
+    strokes.clear();
+    redoes.clear();
+    localStorage.removeItem('strokes');
+    localStorage.removeItem('redoes');
+    localStorage.removeItem('bg-color');
+    recreate();
+})
+
+const thickness_slider = document.getElementById("thickness");
+const color_picker = document.getElementById("color-picker");
+color_picker.addEventListener('input',(inp)=>{
+    color = color_picker.value;
+})
+const fill_picker = document.getElementById("fill-color-picker");
+fill_picker.addEventListener('input',(inp)=>{
+    fill_color = fill_picker.value
+})
+const bg_picker = document.getElementById("bg-picker");
+bg_picker.addEventListener('input',(inp)=>{
+    canvas.style.backgroundColor = bg_picker.value;
+    recreate();
+})
+
+const fill_checkbox = document.getElementById("fill-checkbox");
+
+const theme_toggle_btn = document.getElementById('theme-toggle');
+theme_toggle_btn.addEventListener('click',(e)=>{
+    document.body.classList.toggle('light-mode');
+});
+//endregion
+
+
+let redoes = JSON.parse(localStorage.getItem('redoes') || "[]");
+let strokes = JSON.parse(localStorage.getItem('strokes') || "[]");
+bg_picker.value=localStorage.getItem('bg-color')||"#121212"
+canvas.style.backgroundColor = bg_picker.value;
+recreate();
+
+//region Coordinate-geometry
+function getSquare_from_diagonal(x1,y1,x3,y3){
+    return {x2:(x1+x3+y1-y3)/2,y2:(y1+y3+x3-x1)/2,x4:(x1+x3-y1+y3)/2,y4:(y1+y3-x3+x1)/2}
+}
+//endregion
+
+
+//region Canvas functions
 function init_pencil(event,erase){
     if (erase){
         active = DrawMode.Eraser;
@@ -229,6 +320,7 @@ preview_canvas.addEventListener('mousedown',(e)=>{
         case DrawMode.Line:
             init_line(e);
             break;
+
     }
 });
 preview_canvas.addEventListener('mousemove',(e)=>{
@@ -278,7 +370,34 @@ function mouse_up_on_canvas_listener(e){
             end_line(e);
     }
 }
-preview_canvas.addEventListener('mouseup',mouse_up_on_canvas_listener);
+preview_canvas.addEventListener('mouseup',(e)=>{
+    if (currentMode===DrawMode.Text){
+
+        const textbox = document.createElement('input');
+        main.appendChild(textbox)
+        textbox.style.position = "absolute";
+        textbox.style.top = (e.clientY).toString()+'px';
+        textbox.style.left = (e.clientX).toString()+'px';
+        textbox.style.width = "100px";
+        textbox.style.height = "50px";
+        textbox.style.zIndex = "10";
+        textbox.style.color = "#fff";
+        textbox.classList.add('tb')
+        textbox.addEventListener('focusout', () => {
+            // ctx.font = "200px Arial";
+            ctx.font = "italic 180px Times New Roman";
+            ctx.fillStyle = fill_color;
+            ctx.fillText(textbox.value,e.offsetX*scale_factorX,e.offsetY*scale_factorY);
+            strokes.push({drawMode:DrawMode.Text,text:textbox.value,font:ctx.font,color:ctx.fillStyle,x:e.offsetX*scale_factorX,y:e.offsetY*scale_factorY})
+            textbox.remove();
+        });
+        textbox.focus();
+
+    }
+    else{
+        mouse_up_on_canvas_listener(e);
+    }
+});
 preview_canvas.addEventListener('mouseleave',mouse_up_on_canvas_listener);
 preview_canvas.addEventListener('keydown',function shortcuts(event)
 {
@@ -316,6 +435,11 @@ function recreate(){
             case DrawMode.Clear:
                 ctx.clearRect(0,0,canvas.width,canvas.height);
                 break;
+            case DrawMode.Text:
+                ctx.font = stroke.font;
+                ctx.fillStyle = stroke.color;
+                ctx.fillText(stroke.text,stroke.x,stroke.y);
+                break;
         }
     }
 }
@@ -332,64 +456,4 @@ function Redo(){
         recreate();
     }
 }
-//endregion
-
-//region Tools
-pencil_btn = document.getElementById("pencil")
-eraser_btn = document.getElementById("eraser")
-square_btn = document.getElementById("square")
-circle_btn = document.getElementById("circle")
-line_btn = document.getElementById("line")
-
-pencil_btn.addEventListener('click',()=>{
-    currentMode = DrawMode.Pencil;
-    preview_canvas.style.cursor  = "url('images/pencil.png') 0 64,auto";
-});
-eraser_btn.addEventListener('click',()=>{
-    currentMode = DrawMode.Eraser;
-    preview_canvas.style.cursor  = "url('images/eraser.png') 15 50,auto";
-});
-square_btn.addEventListener('click',()=>{
-    currentMode = DrawMode.Square;
-    preview_canvas.style.cursor = "crosshair"
-});
-circle_btn.addEventListener('click',()=>{
-    currentMode = DrawMode.Circle;
-    preview_canvas.style.cursor = "crosshair"
-});
-line_btn.addEventListener('click',()=>{
-    currentMode = DrawMode.Line;
-    preview_canvas.style.cursor = "crosshair"
-
-});
-
-
-const clear_btn = document.getElementById("clearCanvas");
-clear_btn.addEventListener('click',()=>{
-    strokes.push({drawMode:DrawMode.Clear});
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    preview_canvas.focus();
-})
-
-const thickness_slider = document.getElementById("thickness");
-const color_picker = document.getElementById("color-picker");
-color_picker.addEventListener('input',(inp)=>{
-    color = color_picker.value;
-})
-const fill_picker = document.getElementById("fill-color-picker");
-fill_picker.addEventListener('input',(inp)=>{
-    fill_color = fill_picker.value
-})
-const bg_picker = document.getElementById("bg-picker");
-bg_picker.addEventListener('input',(inp)=>{
-    canvas.style.backgroundColor = bg_picker.value;
-    recreate();
-})
-
-const fill_checkbox = document.getElementById("fill-checkbox");
-
-const theme_toggle_btn = document.getElementById('theme-toggle');
-theme_toggle_btn.addEventListener('click',(e)=>{
-    document.body.classList.toggle('light-mode');
-});
 //endregion
