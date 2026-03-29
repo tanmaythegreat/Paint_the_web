@@ -190,12 +190,12 @@ function drag_pencil(event){
 function end_pencil(event){
     drag_pencil(event);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw_pencil(strokes[strokes.length-1])
+    draw_pencil(strokes[strokes.length-1],ctx)
     active = DrawMode.None;
     redoes.length = 0;
     actions.push(strokes[strokes.length-1]);
 }
-function draw_pencil(stroke){
+function draw_pencil(stroke,ctx){
     ctx.lineWidth = stroke.coords[0].thickness;
     if (stroke.drawMode===DrawMode.Eraser){ctx.strokeStyle=getComputedStyle(canvas).backgroundColor;}else{ctx.strokeStyle = stroke.color;}
     ctx.beginPath();
@@ -399,8 +399,8 @@ function move_selection(event){
     apply_action(actions[actions.length-1],box);
 
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-
-    // draw(stroke,preview_ctx);
+    console.log(stroke)
+    draw(stroke,preview_ctx);
     draw(box,preview_ctx);
 
 }
@@ -441,9 +441,10 @@ function rotate_selection(event){
 
     apply_action(action,stroke);
     apply_action(action,box);
+
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(box,preview_ctx);
-    // draw(stroke,preview_ctx);
+    draw(stroke,preview_ctx);
 }
 
 function draw(stroke,ctx){
@@ -486,7 +487,7 @@ const R = 60;//radius of the rotation circle
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
 preview_canvas.addEventListener('click',(e)=>{
     if (currentMode===DrawMode.Select){
-        if (active===DrawMode.Select){
+        if (active===DrawMode.SelectMove || active===DrawMode.SelectRotate || active===DrawMode.Select){
             end_selection(e);
         }
         else {
@@ -517,11 +518,11 @@ preview_canvas.addEventListener('pointerdown',(e)=>{
             init_line(e);
             break;
         case DrawMode.Select:
-            const box = {...selection_box};
-            apply_action(actions[actions.length-1],box);
-            const x = e.offsetX*scale_factorX;
-            const y = e.offsetY*scale_factorY;
             if (active===DrawMode.Select) {
+                const box = {...selection_box};
+                apply_action(actions[actions.length-1],box);
+                const x = e.offsetX*scale_factorX;
+                const y = e.offsetY*scale_factorY;
                 if (x >= Math.min(box.x1, box.x2, box.x3, box.x4) && x <= Math.max(box.x1, box.x2, box.x3, box.x4) &&
                     y >= Math.min(box.y1, box.y2, box.y3, box.y4) && y <= Math.max(box.y1, box.y2, box.y3, box.y4)) {
                     active = DrawMode.SelectMove;
@@ -590,12 +591,12 @@ function mouse_up_on_canvas_listener(e){
         case DrawMode.Line:
             end_line(e);
             break;
-        case DrawMode.SelectMove:
-            end_selection(e);
-            break;
-        case DrawMode.SelectRotate:
-            end_selection(e);
-            break;
+        // case DrawMode.SelectMove:
+        //     end_selection(e);
+        //     break;
+        // case DrawMode.SelectRotate:
+        //     end_selection(e);
+        //     break;
     }
 }
 preview_canvas.addEventListener('pointerup',(e)=>{
@@ -650,10 +651,10 @@ function recreate(){
     for (const stroke of strokes) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
-                draw_pencil(stroke);
+                draw_pencil(stroke,ctx);
                 break;
             case DrawMode.Eraser:
-                draw_pencil(stroke);
+                draw_pencil(stroke,ctx);
                 break;
             case DrawMode.Square:
                 draw_square(stroke,ctx);
