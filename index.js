@@ -104,6 +104,7 @@ const permanent_clear_btn = document.getElementById("permanent_clearCanvas");
 permanent_clear_btn.addEventListener('click',()=>{
     strokes.length = 0;
     redoes.length = 0;
+    actions.length = 0;
     localStorage.removeItem('strokes');
     localStorage.removeItem('redoes');
     localStorage.removeItem('actions');
@@ -364,12 +365,9 @@ function init_selection(event){
             selection_box.y2 = strokes[i].bounds.y_max;
             selection_box.y3 = strokes[i].bounds.y_max;
             selection_box.y4 = strokes[i].bounds.y_min;
-            console.log(strokes)
-            console.log(id)
             const stroke = strokes.splice(i,1)[0];
             recreate();
             strokes.push(stroke);
-            console.log(stroke)
             actions.push({drawMode:DrawMode.Select,id,x_shift:0,y_shift:0,a:1,b:0,c:0,d:1});
             preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
             draw(stroke,preview_ctx);
@@ -379,18 +377,19 @@ function init_selection(event){
             break;
         }
     }
-    console.log(actions)
-    console.log(strokes)
-    console.log(selection_box)
 }
 function move_selection(event){
     actions[actions.length-1].x_shift+=event.movementX*scale_factorX;
     actions[actions.length-1].y_shift+=event.movementY*scale_factorY;
-    const stroke = {...strokes[strokes.length-1]};
+    const stroke = {...(strokes[strokes.length-1])};
+    if (stroke.drawMode===DrawMode.Circle || stroke.drawMode===DrawMode.Pencil){
+        stroke.coords = {...(stroke.coords)};
+    }
     const box = {...selection_box};
 
     apply_action(actions[actions.length-1],stroke);
     apply_action(actions[actions.length-1],box);
+    console.log(box);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(stroke,preview_ctx);
     draw(box,preview_ctx);
@@ -400,6 +399,7 @@ function end_selection(event){
     move_selection(event);
     apply_action(actions[actions.length-1],strokes[strokes.length-1]);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    console.log(strokes[strokes.length-1]);
     draw(strokes[strokes.length-1],ctx);
     active = DrawMode.None;
 }
@@ -411,7 +411,7 @@ function rotate_selection(event){
     const centerY = (b.y_min+b.y_max)/2;
     const A = {x:prevPosX-centerX,y:prevPosY-centerY};
     prevPosX = event.offsetX*scale_factorX;
-    prevPosY = event.offsetX*scale_factorY;
+    prevPosY = event.offsetY*scale_factorY;
     const B = {x:prevPosX-centerX,y:prevPosY-centerY};
     const cos = (A.x*B.x+A.y*B.y)/(Math.sqrt(A.x*A.x+A.y*A.y)*Math.sqrt(B.x*B.x+B.y*B.y));
     const sin = Math.sqrt(1-cos*cos);
@@ -428,6 +428,9 @@ function rotate_selection(event){
     action.d = d;
 
     const stroke = {...strokes[strokes.length-1]};
+    if (stroke.drawMode===DrawMode.Circle || stroke.drawMode===DrawMode.Pencil){
+        stroke.coords = {...(stroke.coords)};
+    }
     apply_action(action,stroke);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(stroke,preview_ctx);
@@ -448,7 +451,7 @@ function draw(stroke,ctx){
             draw_square(stroke,ctx);
             break;
         case DrawMode.Dashed_Box:
-            ctx.setLineDash([10,4]);
+            // ctx.setLineDash([10,4]);
             ctx.beginPath();
             ctx.moveTo(stroke.x1,stroke.y1);
             ctx.lineTo(stroke.x2,stroke.y2);
@@ -610,7 +613,6 @@ preview_canvas.addEventListener('keydown',function shortcuts(event)
 function recreate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    strokes.length = 0;
     for (const stroke of strokes) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
@@ -646,6 +648,8 @@ function Undo(){
             const b= -action.b/det;
             const c = -action.c/det;
             const d = action.a/det;
+            const CenterX = (stroke.bounds.x_min+stroke.bounds.x_max)/2;
+            const CenterY = (stroke.bounds.y_min+stroke.bounds.y_max)/2;
             let x_min = canvas.width;
             let x_max = 0;
             let y_min = canvas.height;
@@ -654,8 +658,8 @@ function Undo(){
                 case DrawMode.Pencil:
 
                     for (let i = 0; i < stroke.coords.length; i++) {
-                        const x = a*stroke.coords[i].x+b*stroke.coords[i].y - action.x_shift;
-                        const y = c*stroke.coords[i].x+d*stroke.coords[i].y - action.y_shift;
+                        const x = a*(stroke.coords[i].x-CenterX)+b*(stroke.coords[i].y-CenterY) - action.x_shift + CenterX;
+                        const y = c*(stroke.coords[i].x-CenterX)+d*(stroke.coords[i].y-CenterY) - action.y_shift + CenterY;
 
                         stroke.coords[i].x = x;
                         stroke.coords[i].y = y;
@@ -671,8 +675,8 @@ function Undo(){
                     break;
                 case DrawMode.Square:
 
-                    const x1 = a*stroke.x1+b*stroke.y1 - action.x_shift;
-                    const y1 = c*stroke.x1+d*stroke.y1 - action.y_shift;
+                    const x1 = a*(stroke.x1-CenterX)+b*(stroke.y1-CenterY) - action.x_shift + CenterX;
+                    const y1 = c*(stroke.x1-CenterX)+d*(stroke.y1-CenterY) - action.y_shift + CenterY;
 
                     stroke.x1 = x1;
                     stroke.y1 = y1;
@@ -681,8 +685,8 @@ function Undo(){
                     y_min = Math.min(y1,y_min);
                     y_max = Math.max(y1,y_max);
 
-                    const x2 = a*stroke.x2+b*stroke.y2 - action.x_shift;
-                    const y2 = c*stroke.x2+d*stroke.y2 - action.y_shift;
+                    const x2 = a*(stroke.x2-CenterX)+b*(stroke.y2-CenterY) - action.x_shift + CenterX;
+                    const y2 = c*(stroke.x2-CenterX)+d*(stroke.y2-CenterY) - action.y_shift + CenterY;
 
                     stroke.x2 = x2;
                     stroke.y2 = y2;
@@ -692,8 +696,8 @@ function Undo(){
                     y_max = Math.max(y2,y_max);
 
 
-                    const x3 = a*stroke.x3+b*stroke.y3 - action.x_shift;
-                    const y3 = c*stroke.x3+d*stroke.y3 - action.y_shift;
+                    const x3 = a*(stroke.x3-CenterX)+b*(stroke.y3-CenterY) - action.x_shift + CenterX;
+                    const y3 = c*(stroke.x3-CenterX)+d*(stroke.y3-CenterY) - action.y_shift + CenterY;
 
                     stroke.x3 = x3;
                     stroke.y3 = y3;
@@ -703,8 +707,8 @@ function Undo(){
                     y_max = Math.max(y3,y_max);
 
 
-                    const x4 = a*stroke.x4+b*stroke.y4 - action.x_shift;
-                    const y4 = c*stroke.x4+d*stroke.y4 - action.y_shift;
+                    const x4 = a*(stroke.x4-CenterX)+b*(stroke.y4-CenterY) - action.x_shift + CenterX;
+                    const y4 = c*(stroke.x4-CenterX)+d*(stroke.y4-CenterY) - action.y_shift + CenterY;
 
                     stroke.x4 = x4;
                     stroke.y4 = y4;
@@ -716,8 +720,8 @@ function Undo(){
                 case DrawMode.Circle:
 
                     for (let i = 0; i < 2; i++) {
-                        const x = a*stroke.coords[i].x+b*stroke.coords[i].y - action.x_shift;
-                        const y = c*stroke.coords[i].x+d*stroke.coords[i].y - action.y_shift;
+                        const x = a*(stroke.coords[i].x-CenterX)+b*(stroke.coords[i].y-CenterY) - action.x_shift + CenterX;
+                        const y = c*(stroke.coords[i].x-CenterX)+d*(stroke.coords[i].y-CenterY) - action.y_shift + CenterY;
 
                         stroke.coords[i].x = x;
                         stroke.coords[i].y = y;
@@ -774,12 +778,14 @@ function apply_action(action,stroke){
     let x_max = 0;
     let y_min = canvas.height;
     let y_max = 0;
+    const CenterX = stroke.drawMode===DrawMode.Dashed_Box?(stroke.x1+stroke.x2+stroke.x3+stroke.x4)/4:(stroke.bounds.x_min+stroke.bounds.x_max)/2 ;
+    const CenterY = stroke.drawMode===DrawMode.Dashed_Box?(stroke.y1+stroke.y2+stroke.y3+stroke.y4)/4:(stroke.bounds.y_min+stroke.bounds.y_max)/2;
     switch (stroke.drawMode){
         case DrawMode.Pencil:
 
             for (let i = 0; i < stroke.coords.length; i++) {
-                const x = action.a*stroke.coords[i].x+action.b*stroke.coords[i].y + action.x_shift;
-                const y = action.c*stroke.coords[i].x+action.d*stroke.coords[i].y + action.y_shift;
+                const x = action.a*(stroke.coords[i].x-CenterX)+action.b*(stroke.coords[i].y-CenterY) + action.x_shift + CenterX;
+                const y = action.c*(stroke.coords[i].x-CenterX)+action.d*(stroke.coords[i].y-CenterY) + action.y_shift + CenterY;
 
                 stroke.coords[i].x = x;
                 stroke.coords[i].y = y;
@@ -795,8 +801,8 @@ function apply_action(action,stroke){
             break;
         case DrawMode.Square:
 
-            const x1_sq = action.a*stroke.x1+action.b*stroke.y1 + action.x_shift;
-            const y1_sq = action.c*stroke.x1+action.d*stroke.y1 + action.y_shift;
+            const x1_sq = action.a*(stroke.x1-CenterX)+action.b*(stroke.y1-CenterY) + action.x_shift + CenterX;
+            const y1_sq = action.c*(stroke.x1-CenterX)+action.d*(stroke.y1-CenterY) + action.y_shift + CenterY;
 
             stroke.x1 = x1_sq;
             stroke.y1 = y1_sq;
@@ -805,8 +811,8 @@ function apply_action(action,stroke){
             y_min = Math.min(y1_sq,y_min);
             y_max = Math.max(y1_sq,y_max);
 
-            const x2_sq = action.a*stroke.x2+action.b*stroke.y2 + action.x_shift;
-            const y2_sq = action.c*stroke.x2+action.d*stroke.y2 + action.y_shift;
+            const x2_sq = action.a*(stroke.x2-CenterX)+action.b*(stroke.y2-CenterY) + action.x_shift + CenterX;
+            const y2_sq = action.c*(stroke.x2-CenterX)+action.d*(stroke.y2-CenterY) + action.y_shift + CenterY;
 
             stroke.x2 = x2_sq;
             stroke.y2 = y2_sq;
@@ -815,9 +821,8 @@ function apply_action(action,stroke){
             y_min = Math.min(y2_sq,y_min);
             y_max = Math.max(y2_sq,y_max);
 
-
-            const x3_sq = action.a*stroke.x3+action.b*stroke.y3 + action.x_shift;
-            const y3_sq = action.c*stroke.x3+action.d*stroke.y3 + action.y_shift;
+            const x3_sq = action.a*(stroke.x3-CenterX)+action.b*(stroke.y3-CenterY) + action.x_shift + CenterX;
+            const y3_sq = action.c*(stroke.x3-CenterX)+action.d*(stroke.y3-CenterY) + action.y_shift + CenterY;
 
             stroke.x3 = x3_sq;
             stroke.y3 = y3_sq;
@@ -827,8 +832,9 @@ function apply_action(action,stroke){
             y_max = Math.max(y3_sq,y_max);
 
 
-            const x4_sq = action.a*stroke.x4+action.b*stroke.y4 + action.x_shift;
-            const y4_sq = action.c*stroke.x4+action.d*stroke.y4 + action.y_shift;
+
+            const x4_sq = action.a*(stroke.x4-CenterX)+action.b*(stroke.y4-CenterY) + action.x_shift + CenterX;
+            const y4_sq = action.c*(stroke.x4-CenterX)+action.d*(stroke.y4-CenterY) + action.y_shift + CenterY;
 
             stroke.x4 = x4_sq;
             stroke.y4 = y4_sq;
@@ -840,8 +846,8 @@ function apply_action(action,stroke){
         case DrawMode.Circle:
 
             for (let i = 0; i < 2; i++) {
-                const x = action.a*stroke.coords[i].x+action.b*stroke.coords[i].y + action.x_shift;
-                const y = action.c*stroke.coords[i].x+action.d*stroke.coords[i].y + action.y_shift;
+                const x = action.a*(stroke.coords[i].x-CenterX)+action.b*(stroke.coords[i].y-CenterY) + action.x_shift + CenterX;
+                const y = action.c*(stroke.coords[i].x-CenterX)+action.d*(stroke.coords[i].y-CenterY) + action.y_shift + CenterY;
 
                 stroke.coords[i].x = x;
                 stroke.coords[i].y = y;
@@ -857,27 +863,27 @@ function apply_action(action,stroke){
             break;
         case DrawMode.Dashed_Box:
 
-            const x1 = action.a*stroke.x1+action.b*stroke.y1 + action.x_shift;
-            const y1 = action.c*stroke.x1+action.d*stroke.y1 + action.y_shift;
+            const x1 = action.a*(stroke.x1-CenterX)+action.b*(stroke.y1-CenterY) + action.x_shift + CenterX;
+            const y1 = action.c*(stroke.x1-CenterX)+action.d*(stroke.y1-CenterY) + action.y_shift + CenterY;
 
             stroke.x1 = x1;
             stroke.y1 = y1;
 
-            const x2 = action.a*stroke.x2+action.b*stroke.y2 + action.x_shift;
-            const y2 = action.c*stroke.x2+action.d*stroke.y2 + action.y_shift;
+            const x2 = action.a*(stroke.x2-CenterX)+action.b*(stroke.y2-CenterY) + action.x_shift + CenterX;
+            const y2 = action.c*(stroke.x2-CenterX)+action.d*(stroke.y2-CenterY) + action.y_shift + CenterY;
 
             stroke.x2 = x2;
             stroke.y2 = y2;
 
 
-            const x3 = action.a*stroke.x3+action.b*stroke.y3 + action.x_shift;
-            const y3 = action.c*stroke.x3+action.d*stroke.y3 + action.y_shift;
+            const x3 = action.a*(stroke.x3-CenterX)+action.b*(stroke.y3-CenterY) + action.x_shift + CenterX;
+            const y3 = action.c*(stroke.x3-CenterX)+action.d*(stroke.y3-CenterY) + action.y_shift + CenterY;
 
             stroke.x3 = x3;
             stroke.y3 = y3;
 
-            const x4 = action.a*stroke.x4+action.b*stroke.y4 + action.x_shift;
-            const y4 = action.c*stroke.x4+action.d*stroke.y4 + action.y_shift;
+            const x4 = action.a*(stroke.x4-CenterX)+action.b*(stroke.y4-CenterY) + action.x_shift + CenterX;
+            const y4 = action.c*(stroke.x4-CenterX)+action.d*(stroke.y4-CenterY) + action.y_shift + CenterY;
 
             stroke.x4 = x4;
             stroke.y4 = y4;
