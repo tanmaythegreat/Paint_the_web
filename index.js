@@ -10,7 +10,9 @@ const DrawMode = {
     Clear:6,
     Text: 7,
     Select:8,
-    Dashed_Box:9
+    Dashed_Box:9,
+    SelectMove:10,
+    SelectRotate:11
 }
 let color = '#f0f0f0';
 let fill_color = '#f0f0f0';
@@ -176,7 +178,7 @@ function drag_pencil(event){
     b.x_min = Math.min(x,b.x_min);
     b.y_min = Math.min(y,b.y_min);
     b.x_max = Math.max(x,b.x_max);
-    b.y_max = Math.max(x,b.y_max);
+    b.y_max = Math.max(y,b.y_max);
     preview_ctx.lineTo(x,y);
     preview_ctx.stroke();
 }
@@ -190,8 +192,7 @@ function end_pencil(event){
 }
 function draw_pencil(stroke){
     ctx.lineWidth = stroke.coords[0].thickness;
-    if (stroke.drawMode===DrawMode.Eraser){ctx.strokeStyle=getComputedStyle(canvas).backgroundColor;
-    console.log("its eraser!");}else{ctx.strokeStyle = stroke.color;}
+    if (stroke.drawMode===DrawMode.Eraser){ctx.strokeStyle=getComputedStyle(canvas).backgroundColor;}else{ctx.strokeStyle = stroke.color;}
     ctx.beginPath();
     ctx.moveTo(stroke.coords[0].x,stroke.coords[0].y)
     ctx.lineWidth = stroke.coords[0].thickness;
@@ -366,8 +367,12 @@ function init_selection(event){
             selection_box.y3 = strokes[i].bounds.y_max;
             selection_box.y4 = strokes[i].bounds.y_min;
             const stroke = strokes.splice(i,1)[0];
+            console.log("before");
+            console.log(strokes);
             recreate();
-            strokes.push(stroke);
+            console.log("after");
+            console.log(strokes);
+            strokes.push(stroke)
             actions.push({drawMode:DrawMode.Select,id,x_shift:0,y_shift:0,a:1,b:0,c:0,d:1});
             preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
             draw(stroke,preview_ctx);
@@ -381,26 +386,24 @@ function init_selection(event){
 function move_selection(event){
     actions[actions.length-1].x_shift+=event.movementX*scale_factorX;
     actions[actions.length-1].y_shift+=event.movementY*scale_factorY;
-    const stroke = {...(strokes[strokes.length-1])};
-    if (stroke.drawMode===DrawMode.Circle || stroke.drawMode===DrawMode.Pencil){
-        stroke.coords = {...(stroke.coords)};
-    }
+    const stroke = JSON.parse(JSON.stringify(strokes[strokes.length-1]));
+
     const box = {...selection_box};
 
     apply_action(actions[actions.length-1],stroke);
     apply_action(actions[actions.length-1],box);
-    console.log(box);
+
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw(stroke,preview_ctx);
+
     draw(box,preview_ctx);
-    console.log("Move select")
+    draw(stroke,preview_ctx);
+
 }
 function end_selection(event){
-    move_selection(event);
-    apply_action(actions[actions.length-1],strokes[strokes.length-1]);
+    console.log("the end");
+    strokes[strokes.length-1].bounds = apply_action(actions[actions.length-1],strokes[strokes.length-1]);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    console.log(strokes[strokes.length-1]);
-    draw(strokes[strokes.length-1],ctx);
+    recreate();
     active = DrawMode.None;
 }
 let prevPosX = 0;
@@ -416,24 +419,26 @@ function rotate_selection(event){
     const cos = (A.x*B.x+A.y*B.y)/(Math.sqrt(A.x*A.x+A.y*A.y)*Math.sqrt(B.x*B.x+B.y*B.y));
     const sin = Math.sqrt(1-cos*cos);
 
-    const a = a*cos-c*sin;
-    const bB = b*cos-d*sin;
-    const c = a*sin+c*cos;
-    const d = b*sin+d*cos;
-
     const action = actions[actions.length-1];
+
+    const a = action.a*cos-action.c*sin;
+    const bB = action.b*cos-action.d*sin;
+    const c = action.a*sin+action.c*cos;
+    const d = action.b*sin+action.d*cos;
+
     action.a = a;
     action.b = bB;
     action.c = c;
     action.d = d;
 
-    const stroke = {...strokes[strokes.length-1]};
-    if (stroke.drawMode===DrawMode.Circle || stroke.drawMode===DrawMode.Pencil){
-        stroke.coords = {...(stroke.coords)};
-    }
+    const stroke = JSON.parse(JSON.stringify(strokes[strokes.length-1]));
+    const box = {...selection_box};
+
     apply_action(action,stroke);
+    apply_action(action,box);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(stroke,preview_ctx);
+    draw(box,preview_ctx);
 }
 
 function draw(stroke,ctx){
@@ -451,7 +456,7 @@ function draw(stroke,ctx){
             draw_square(stroke,ctx);
             break;
         case DrawMode.Dashed_Box:
-            // ctx.setLineDash([10,4]);
+            ctx.setLineDash([10,4]);
             ctx.beginPath();
             ctx.moveTo(stroke.x1,stroke.y1);
             ctx.lineTo(stroke.x2,stroke.y2);
@@ -459,18 +464,31 @@ function draw(stroke,ctx){
             ctx.lineTo(stroke.x4,stroke.y4);
             ctx.closePath();
             ctx.stroke();
-            // ctx.setLineDash([10,4]);
-            // ctx.moveTo((stroke.x2+stroke.x3)/2,(stroke.y2+stroke.y3)/2);
-            // ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
-            // ctx.stroke();
-            // ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.Pi*2);
-            // ctx.fill()
+            ctx.moveTo((stroke.x2+stroke.x3)/2,(stroke.y2+stroke.y3)/2);
+            ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.fillStyle = 'white';
+            ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.PI*2);
+            ctx.closePath();
+            ctx.fill()
+            ctx.setLineDash([]);
             break;
     }
 }
-const R = 30;//radius of the rotation circle
+const R = 60;//radius of the rotation circle
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
-preview_canvas.addEventListener('mousedown',(e)=>{
+preview_canvas.addEventListener('click',(e)=>{
+    if (currentMode===DrawMode.Select){
+        if (active===DrawMode.Select){
+            end_selection(e);
+        }
+        else {
+            init_selection(e);
+        }
+    }
+})
+preview_canvas.addEventListener('pointerdown',(e)=>{
     const rect = canvas.getBoundingClientRect();
     canvas_left = rect.left;
     canvas_top = rect.top;
@@ -493,12 +511,24 @@ preview_canvas.addEventListener('mousedown',(e)=>{
             init_line(e);
             break;
         case DrawMode.Select:
-            init_selection(e);
+            const box = {...selection_box};
+            apply_action(actions[actions.length-1],box);
+            const x = e.offsetX*scale_factorX;
+            const y = e.offsetY*scale_factorY;
+            if (active===DrawMode.Select) {
+                if (x >= Math.min(box.x1, box.x2, box.x3, box.x4) && x <= Math.max(box.x1, box.x2, box.x3, box.x4) &&
+                    y >= Math.min(box.y1, box.y2, box.y3, box.y4) && y <= Math.max(box.y1, box.y2, box.y3, box.y4)) {
+                    active = DrawMode.SelectMove;
+                }
+                else{
+                    active = DrawMode.SelectRotate;
+                }
+            }
             break;
 
     }
 });
-preview_canvas.addEventListener('mousemove',(e)=>{
+preview_canvas.addEventListener('pointermove',(e)=>{
     switch (active){
         case DrawMode.Pencil:
             drag_pencil(e);
@@ -515,14 +545,14 @@ preview_canvas.addEventListener('mousemove',(e)=>{
         case DrawMode.Line:
             drag_line(e);
             break;
-        case DrawMode.Select:
-            const box = {...selection_box};
-            apply_action(actions[actions.length-1],box)
-            if (Math.pow(((box.x2-box.x1)/10+(box.x2+box.x3)/2-e.offsetX),2)+Math.pow(((box.y2-box.y1)/10+(box.y2+box.y3)/2)-e.offsetY,2)<=R*R){
-                //rotate_selection(e);
-            }
-            else{
+        case DrawMode.SelectMove:
+            if (e.buttons===1) {
                 move_selection(e);
+            }
+            break;
+        case DrawMode.SelectRotate:
+            if (e.buttons===1) {
+                rotate_selection(e);
             }
             break;
     }
@@ -554,17 +584,15 @@ function mouse_up_on_canvas_listener(e){
         case DrawMode.Line:
             end_line(e);
             break;
-        case DrawMode.Select:
-            const box = {...selection_box};
-            apply_action(actions[actions.length-1],box);
-            if (e.offsetX*scale_factorX>=Math.min(box.x1,box.x2,box.x3,box.x4) && e.offsetX*scale_factorX<=Math.max(box.x1,box.x2,box.x3,box.x4) &&
-                e.offsetY*scale_factorY>=Math.min(box.y1,box.y2,box.y3,box.y4) && e.offsetY*scale_factorY<=Math.max(box.y1,box.y2,box.y3,box.y4)){
-                end_selection(e);
-            }
+        case DrawMode.SelectMove:
+            end_selection(e);
+            break;
+        case DrawMode.SelectRotate:
+            end_selection(e);
             break;
     }
 }
-preview_canvas.addEventListener('mouseup',(e)=>{
+preview_canvas.addEventListener('pointerup',(e)=>{
     if (currentMode===DrawMode.Text){
 
         const textbox = document.createElement('input');
@@ -593,7 +621,7 @@ preview_canvas.addEventListener('mouseup',(e)=>{
         mouse_up_on_canvas_listener(e);
     }
 });
-preview_canvas.addEventListener('mouseleave',mouse_up_on_canvas_listener);
+preview_canvas.addEventListener('pointerleave',mouse_up_on_canvas_listener);
 preview_canvas.addEventListener('keydown',function shortcuts(event)
 {
     if (event.ctrlKey){
@@ -635,6 +663,7 @@ function recreate(){
                 ctx.fillStyle = stroke.color;
                 ctx.fillText(stroke.text,stroke.x,stroke.y);
                 break;
+
         }
     }
 }
@@ -762,7 +791,7 @@ function Redo(){
             stroke.bounds.y_min = b.y_min;
             stroke.bounds.y_max = b.y_max;
 
-            strokes.splice(action.id,0,stroke);
+            strokes.splice(action.id,1,stroke);
             strokes.push(stroke);
         }
         else{
