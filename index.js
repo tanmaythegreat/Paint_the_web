@@ -9,6 +9,8 @@ const DrawMode = {
     Line:5,
     Clear:6,
     Text: 7,
+    Select:8,
+    Dashed_Box:9
 }
 let color = '#f0f0f0';
 let fill_color = '#f0f0f0';
@@ -17,7 +19,6 @@ const Res = 4;
 const speed_offset = 10000;
 const speed_scale = 10000;
 //endregion
-
 
 //region Canvas init
 const eraser_cursor = document.getElementById('eraser-cursor');
@@ -57,6 +58,7 @@ square_btn = document.getElementById("square")
 circle_btn = document.getElementById("circle")
 line_btn = document.getElementById("line")
 text_btn = document.getElementById("text")
+select_btn = document.getElementById("select")
 
 pencil_btn.addEventListener('click',()=>{
     currentMode = DrawMode.Pencil;
@@ -84,18 +86,23 @@ text_btn.addEventListener('click',()=>{
     preview_canvas.style.cursor = "crosshair"
 
 });
+select_btn.addEventListener('click',()=>{
+    currentMode = DrawMode.Select;
+    preview_canvas.style.cursor = "pointer"
+});
 
 
 const clear_btn = document.getElementById("clearCanvas");
 clear_btn.addEventListener('click',()=>{
     strokes.push({drawMode:DrawMode.Clear});
+    actions.push({drawMode:DrawMode.Clear});
     ctx.clearRect(0,0,canvas.width,canvas.height);
     preview_canvas.focus();
 })
 const permanent_clear_btn = document.getElementById("permanent_clearCanvas");
 permanent_clear_btn.addEventListener('click',()=>{
-    strokes.clear();
-    redoes.clear();
+    strokes.length = 0;
+    redoes.length = 0;
     localStorage.removeItem('strokes');
     localStorage.removeItem('redoes');
     localStorage.removeItem('bg-color');
@@ -125,9 +132,9 @@ theme_toggle_btn.addEventListener('click',(e)=>{
 });
 //endregion
 
-
-let redoes = JSON.parse(localStorage.getItem('redoes') || "[]");
-let strokes = JSON.parse(localStorage.getItem('strokes') || "[]");
+const redoes = JSON.parse(localStorage.getItem('redoes') || "[]");
+const strokes = JSON.parse(localStorage.getItem('strokes') || "[]");
+const actions = JSON.parse(localStorage.getItem('actions') || "[]");
 bg_picker.value=localStorage.getItem('bg-color')||"#121212"
 canvas.style.backgroundColor = bg_picker.value;
 recreate();
@@ -137,7 +144,6 @@ function getSquare_from_diagonal(x1,y1,x3,y3){
     return {x2:(x1+x3+y1-y3)/2,y2:(y1+y3+x3-x1)/2,x4:(x1+x3-y1+y3)/2,y4:(y1+y3-x3+x1)/2}
 }
 //endregion
-
 
 //region Canvas functions
 function init_pencil(event,erase){
@@ -152,7 +158,8 @@ function init_pencil(event,erase){
     preview_ctx.beginPath();
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: dm, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value}]})
+    const stroke = {drawMode: dm, bounds:{x_min:x,x_max:x,y_min:y,y_max:y},color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value}]};
+    strokes.push(stroke);
     preview_ctx.moveTo(x,y);
     preview_ctx.stroke();
 }
@@ -162,14 +169,21 @@ function drag_pencil(event){
     const x = scale_factorX*(event.offsetX);
     const y = scale_factorY*(event.offsetY);
     strokes[strokes.length-1].coords.push({x,y,thickness:preview_ctx.lineWidth});
+    const b = strokes[strokes.length-1].bounds;
+    b.x_min = Math.min(x,b.x_min);
+    b.y_min = Math.min(y,b.y_min);
+    b.x_max = Math.max(x,b.x_max);
+    b.y_max = Math.max(x,b.y_max);
     preview_ctx.lineTo(x,y);
     preview_ctx.stroke();
 }
 function end_pencil(event){
+    drag_pencil(event);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw_pencil(strokes[strokes.length-1])
     active = DrawMode.None;
     redoes.length = 0;
+    actions.push(strokes[strokes.length-1]);
 }
 function draw_pencil(stroke){
     ctx.lineWidth = stroke.coords[0].thickness;
@@ -190,7 +204,7 @@ function init_square(event){
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    const sq_config = {drawMode: DrawMode.Square,fill_color,color,fill:fill_checkbox.checked,thickness:thickness_slider.value,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
+    const sq_config = {drawMode: DrawMode.Square,bounds:{x_min:x,x_max:x,y_min:y,y_max:y},fill_color,color,fill:fill_checkbox.checked,thickness:thickness_slider.value,x1:x,y1:y,x2:x,y2:y,x3:x,y3:y,x4:x,y4:y};
     strokes.push(sq_config);
 }
 function drag_square(event){
@@ -208,10 +222,18 @@ function drag_square(event){
 }
 function end_square(event){
     drag_square(event);
+    const sq_config = strokes[strokes.length-1];
+    const b= sq_config.bounds;
+    b.x_min = Math.min(sq_config.x1,sq_config.x2,sq_config.x3,sq_config.x4);
+    b.x_max = Math.max(sq_config.x1,sq_config.x2,sq_config.x3,sq_config.x4);
+    b.y_min = Math.min(sq_config.y1,sq_config.y2,sq_config.y3,sq_config.y4);
+    b.y_max = Math.max(sq_config.y1,sq_config.y2,sq_config.y3,sq_config.y4);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw_square(strokes[strokes.length-1],ctx)
+    draw_square(strokes[strokes.length-1],ctx);
     active = DrawMode.None;
     redoes.length = 0;
+    actions.push(strokes[strokes.length-1]);
+
 }
 function init_line(event){
     active = DrawMode.Line;
@@ -219,7 +241,8 @@ function init_line(event){
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Pencil, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value},{x,y,thickness:thickness_slider.value}]})
+    const stroke = {drawMode: DrawMode.Pencil,bounds:{x_min:x,x_max:x,y_min:y,y_max:y}, color:preview_ctx.strokeStyle, coords: [{x,y,thickness:thickness_slider.value},{x,y,thickness:thickness_slider.value}]};
+    strokes.push(stroke);
 }
 function drag_line(event){
     const line_config = strokes[strokes.length-1];
@@ -231,9 +254,17 @@ function drag_line(event){
 function end_line(event){
     drag_line(event);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw_line(strokes[strokes.length-1],ctx)
+    const line_config = strokes[strokes.length-1];
+    const b= line_config.bounds;
+    b.x_min = Math.min(line_config.coords[0].x,line_config.coords[1].x);
+    b.x_max = Math.max(line_config.coords[0].x,line_config.coords[1].x);
+    b.y_min = Math.min(line_config.coords[0].y,line_config.coords[1].y);
+    b.y_max = Math.max(line_config.coords[0].y,line_config.coords[1].y);
+    draw_line(line_config,ctx)
     active = DrawMode.None;
     redoes.length = 0;
+    actions.push(strokes[strokes.length-1]);
+
 }
 function draw_line(stroke,ctx){
     ctx.lineWidth = stroke.coords[0].thickness;
@@ -249,7 +280,8 @@ function init_circle(event){
     preview_ctx.strokeStyle = color;
     const x = scale_factorX*event.offsetX;
     const y = scale_factorY*event.offsetY;
-    strokes.push({drawMode: DrawMode.Circle,fill_color, color:preview_ctx.strokeStyle,fill:fill_checkbox.checked,thickness:thickness_slider.value, coords: [{x,y},{x,y}]})
+    const stroke = {drawMode: DrawMode.Circle,bounds:{x_min:x,x_max:x,y_min:y,y_max:y},fill_color, color:preview_ctx.strokeStyle,fill:fill_checkbox.checked,thickness:thickness_slider.value, coords: [{x,y},{x,y}]};
+    strokes.push(stroke);
 }
 function drag_circle(event){
     const circle_config = strokes[strokes.length-1];
@@ -261,16 +293,32 @@ function drag_circle(event){
 function end_circle(event){
     drag_circle(event);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw_circle(strokes[strokes.length-1],ctx)
+    const stroke = strokes[strokes.length-1];
+    const b = stroke.bounds;
+
+    const x = (stroke.coords[0].x+stroke.coords[1].x)/2;
+    const y = (stroke.coords[0].y+stroke.coords[1].y)/2;
+    const r= Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2;
+
+    b.x_min = x-r;
+    b.x_max = x+r;
+    b.y_min = y-r;
+    b.y_max = y+r;
+
+    draw_circle(stroke,ctx)
     active = DrawMode.None;
     redoes.length = 0;
+    actions.push(strokes[strokes.length-1]);
 }
 function draw_circle(stroke,ctx){
     ctx.lineWidth = stroke.thickness;
     ctx.strokeStyle = stroke.color;
     ctx.fillStyle = stroke.fill_color;
     ctx.beginPath();
-    ctx.arc((stroke.coords[0].x+stroke.coords[1].x)/2,(stroke.coords[0].y+stroke.coords[1].y)/2,Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2,0,Math.PI*2);
+    const x = (stroke.coords[0].x+stroke.coords[1].x)/2;
+    const y = (stroke.coords[0].y+stroke.coords[1].y)/2;
+    const r= Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2;
+    ctx.arc(x,y,r,0,Math.PI*2);
     ctx.closePath();
     if (stroke.fill) {
         ctx.fill();
@@ -297,6 +345,122 @@ function draw_square(stroke,ctx) {
     ctx.stroke();
 }
 
+const selection_box = {drawMode:DrawMode.Dashed_Box,x1:0,y1:0,x2:0,y2:0,x3:0,y3:0,x4:0,y4:0};
+function init_selection(event){
+    const x = event.offsetX*scale_factorX;
+    const y = event.offsetY*scale_factorY;
+    let id;
+    for (let i =strokes.length-1; i >=0; i--) {
+        if (strokes[i].bounds.x_min<=x && strokes[i].bounds.x_max>=x && strokes[i].bounds.y_min<=y && strokes[i].bounds.y_max>=y){
+            id = i;
+            active = DrawMode.Select;
+            selection_box.x1 = strokes[i].bounds.x_min;
+            selection_box.x2 = strokes[i].bounds.x_min;
+            selection_box.x3 = strokes[i].bounds.x_max;
+            selection_box.x4 = strokes[i].bounds.x_max;
+            selection_box.y1 = strokes[i].bounds.y_min;
+            selection_box.y2 = strokes[i].bounds.y_max;
+            selection_box.y3 = strokes[i].bounds.y_max;
+            selection_box.y4 = strokes[i].bounds.y_min;
+            console.log(strokes)
+            console.log(id)
+            const stroke = strokes.splice(i,1)[0];
+            recreate();
+            strokes.push(stroke);
+            console.log(stroke)
+            actions.push({drawMode:DrawMode.Select,id,x_shift:0,y_shift:0,a:1,b:0,c:0,d:1});
+            preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+            draw(stroke,preview_ctx);
+            draw(selection_box,preview_ctx);
+            prevPosX = event.offsetX*scale_factorX;
+            prevPosY = event.offsetX*scale_factorY;
+            break;
+        }
+    }
+    console.log(actions)
+    console.log(strokes)
+    console.log(selection_box)
+}
+function move_selection(event){
+    actions[actions.length-1].x_shift+=event.movementX;
+    actions[actions.length-1].y_shift+=event.movementY;
+    const stroke = {...strokes[strokes.length-1]};
+    const box = {...selection_box};
+
+    apply_action(actions[actions.length-1],stroke);
+    apply_action(actions[actions.length-1],box);
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw(stroke,preview_ctx);
+}
+function end_selection(event){
+    move_selection(event);
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    apply_action(actions[actions.length-1],strokes[strokes.length-1]);
+    recreate();
+    active = DrawMode.None;
+}
+let prevPosX = 0;
+let prevPosY = 0;
+function rotate_selection(event){
+    const b = strokes[strokes.length-1].bounds;
+    const centerX = (b.x_min+b.x_max)/2;
+    const centerY = (b.y_min+b.y_max)/2;
+    const A = {x:prevPosX-centerX,y:prevPosY-centerY};
+    prevPosX = event.offsetX*scale_factorX;
+    prevPosY = event.offsetX*scale_factorY;
+    const B = {x:prevPosX-centerX,y:prevPosY-centerY};
+    const cos = (A.x*B.x+A.y*B.y)/(Math.sqrt(A.x*A.x+A.y*A.y)*Math.sqrt(B.x*B.x+B.y*B.y));
+    const sin = 1-cos*cos;
+
+    const a = a*cos-c*sin;
+    const bB = b*cos-d*sin;
+    const c = a*sin+c*cos;
+    const d = b*sin+d*cos;
+
+    actions.a = a;
+    actions.b = bB;
+    actions.c = c;
+    actions.d = d;
+
+    const stroke = {...strokes[stroke.length-1]};
+    apply_action(actions[actions.length-1],stroke);
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw(stroke,preview_ctx);
+}
+
+function draw(stroke,ctx){
+    switch (stroke.drawMode){
+        case DrawMode.Pencil:
+            draw_pencil(stroke,ctx);
+            break;
+        case DrawMode.Circle:
+            draw_circle(stroke,ctx);
+            break;
+        case DrawMode.Line:
+            draw_line(stroke,ctx);
+            break;
+        case DrawMode.Square:
+            draw_square(stroke,ctx);
+            break;
+        case DrawMode.Dashed_Box:
+            ctx.setLineDash([10,4]);
+            ctx.beginPath();
+            ctx.moveTo(stroke.x1,stroke.y1);
+            ctx.lineTo(stroke.x2,stroke.y2);
+            ctx.lineTo(stroke.x3,stroke.y3);
+            ctx.lineTo(stroke.x4,stroke.y4);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([10,4]);
+            ctx.moveTo((stroke.x2+stroke.x3)/2,(stroke.y2+stroke.y3)/2);
+            ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
+            ctx.stroke();
+            ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.Pi*2);
+            ctx.fill()
+            break;
+    }
+}
+const R = 30;//radius of the rotation circle
 let canvas_left,canvas_top,scale_factorX,scale_factorY;
 preview_canvas.addEventListener('mousedown',(e)=>{
     const rect = canvas.getBoundingClientRect();
@@ -320,6 +484,9 @@ preview_canvas.addEventListener('mousedown',(e)=>{
         case DrawMode.Line:
             init_line(e);
             break;
+        case DrawMode.Select:
+            init_selection(e);
+            break;
 
     }
 });
@@ -339,6 +506,16 @@ preview_canvas.addEventListener('mousemove',(e)=>{
             break;
         case DrawMode.Line:
             drag_line(e);
+            break;
+        case DrawMode.Select:
+            const box = {...selection_box};
+            apply_action(actions[actions.length-1],box)
+            if (Math.pow(((box.x2-box.x1)/10+(box.x2+box.x3)/2-e.offsetX),2)+Math.pow(((box.y2-box.y1)/10+(box.y2+box.y3)/2)-e.offsetY,2)<=R*R){
+                rotate_selection(e);
+            }
+            else{
+                move_selection(e);
+            }
             break;
     }
     if (currentMode===DrawMode.Eraser){
@@ -368,6 +545,15 @@ function mouse_up_on_canvas_listener(e){
             break;
         case DrawMode.Line:
             end_line(e);
+            break;
+        case DrawMode.Select:
+            const box = {...selection_box};
+            apply_action(actions[actions.length-1],box);
+            if (e.offsetX*scale_factorX>=Math.min(box.x1,box.x2,box.x3,box.x4) && e.offsetX*scale_factorX<=Math.max(box.x1,box.x2,box.x3,box.x4) &&
+                e.offsetY*scale_factorY>=Math.min(box.y1,box.y2,box.y3,box.y4) && e.offsetY*scale_factorY<=Math.max(box.y1,box.y2,box.y3,box.y4)){
+                end_selection(e);
+            }
+            break;
     }
 }
 preview_canvas.addEventListener('mouseup',(e)=>{
@@ -384,11 +570,12 @@ preview_canvas.addEventListener('mouseup',(e)=>{
         textbox.style.color = "#fff";
         textbox.classList.add('tb')
         textbox.addEventListener('focusout', () => {
-            // ctx.font = "200px Arial";
             ctx.font = "italic 180px Times New Roman";
             ctx.fillStyle = fill_color;
             ctx.fillText(textbox.value,e.offsetX*scale_factorX,e.offsetY*scale_factorY);
-            strokes.push({drawMode:DrawMode.Text,text:textbox.value,font:ctx.font,color:ctx.fillStyle,x:e.offsetX*scale_factorX,y:e.offsetY*scale_factorY})
+            const stroke = {drawMode:DrawMode.Text,bounds:{x_min:0,x_max:0,y_min:0,y_max:0},text:textbox.value,font:ctx.font,color:ctx.fillStyle,x:e.offsetX*scale_factorX,y:e.offsetY*scale_factorY};
+            strokes.push(stroke);
+            actions.push(stroke);
             textbox.remove();
         });
         textbox.focus();
@@ -418,7 +605,8 @@ preview_canvas.addEventListener('keydown',function shortcuts(event)
 function recreate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    for (const stroke of strokes) {
+    strokes.length = 0;
+    for (const stroke of actions) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
                 draw_pencil(stroke);
@@ -443,17 +631,254 @@ function recreate(){
         }
     }
 }
-
 function Undo(){
-    if (strokes.length>0) {
-        redoes.push(strokes.pop());
+    if (actions.length>0) {
+        const action = actions.pop();
+        if (action.drawMode===DrawMode.Select){
+            const stroke = strokes.pop();
+            const det = (action.a*action.d-action.b*action.c);
+            const a = action.d/det;
+            const b= -action.b/det;
+            const c = -action.c/det;
+            const d = action.a/det;
+            let x_min = canvas.width;
+            let x_max = 0;
+            let y_min = canvas.height;
+            let y_max = 0;
+            switch (stroke.drawMode){
+                case DrawMode.Pencil:
+
+                    for (let i = 0; i < stroke.coords.length; i++) {
+                        const x = a*stroke.coords[i].x+b*stroke.coords[i].y - action.x_shift;
+                        const y = c*stroke.coords[i].x+d*stroke.coords[i].y - action.y_shift;
+
+                        stroke.coords[i].x = x;
+                        stroke.coords[i].y = y;
+                        x_min = Math.min(x,x_min);
+                        x_max = Math.max(x_max,x);
+                        y_min = Math.min(y,y_min);
+                        y_max = Math.max(y,y_max);
+                    }
+                    stroke.bounds.x_min = x_min;
+                    stroke.bounds.x_max = x_max;
+                    stroke.bounds.y_min = y_min;
+                    stroke.bounds.y_max = y_max;
+                    break;
+                case DrawMode.Square:
+
+                    const x1 = a*stroke.x1+b*stroke.y1 - action.x_shift;
+                    const y1 = c*stroke.x1+d*stroke.y1 - action.y_shift;
+
+                    stroke.x1 = x1;
+                    stroke.y1 = y1;
+                    x_min = Math.min(x1,x_min);
+                    x_max = Math.max(x_max,x1);
+                    y_min = Math.min(y1,y_min);
+                    y_max = Math.max(y1,y_max);
+
+                    const x2 = a*stroke.x2+b*stroke.y2 - action.x_shift;
+                    const y2 = c*stroke.x2+d*stroke.y2 - action.y_shift;
+
+                    stroke.x2 = x2;
+                    stroke.y2 = y2;
+                    x_min = Math.min(x2,x_min);
+                    x_max = Math.max(x_max,x2);
+                    y_min = Math.min(y2,y_min);
+                    y_max = Math.max(y2,y_max);
+
+
+                    const x3 = a*stroke.x3+b*stroke.y3 - action.x_shift;
+                    const y3 = c*stroke.x3+d*stroke.y3 - action.y_shift;
+
+                    stroke.x3 = x3;
+                    stroke.y3 = y3;
+                    x_min = Math.min(x3,x_min);
+                    x_max = Math.max(x_max,x3);
+                    y_min = Math.min(y3,y_min);
+                    y_max = Math.max(y3,y_max);
+
+
+                    const x4 = a*stroke.x4+b*stroke.y4 - action.x_shift;
+                    const y4 = c*stroke.x4+d*stroke.y4 - action.y_shift;
+
+                    stroke.x4 = x4;
+                    stroke.y4 = y4;
+                    x_min = Math.min(x4,x_min);
+                    x_max = Math.max(x_max,x4);
+                    y_min = Math.min(y4,y_min);
+                    y_max = Math.max(y4,y_max);
+                    break;
+                case DrawMode.Circle:
+
+                    for (let i = 0; i < 2; i++) {
+                        const x = a*stroke.coords[i].x+b*stroke.coords[i].y - action.x_shift;
+                        const y = c*stroke.coords[i].x+d*stroke.coords[i].y - action.y_shift;
+
+                        stroke.coords[i].x = x;
+                        stroke.coords[i].y = y;
+                     }
+                    const x = (stroke.coords[0].x+stroke.coords[1].x)/2;
+                    const y = (stroke.coords[0].y+stroke.coords[1].y)/2;
+                    const r= Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2;
+
+                    x_min = x-r;
+                    x_max = x+r;
+                    y_min = y-r;
+                    y_max = y+r;
+                    break;
+
+            }
+            stroke.bounds.x_min = x_min;
+            stroke.bounds.x_max = x_max;
+            stroke.bounds.y_min = y_min;
+            stroke.bounds.y_max = y_max;
+            strokes.splice(action.id,0,stroke);
+        }
+        else{
+            strokes.pop();
+        }
+        redoes.push(action);
         recreate();
     }
 }
 function Redo(){
     if (redoes.length>0) {
-        strokes.push(redoes.pop());
+        const action = redoes.pop();
+        actions.push(action);
+        if (action.drawMode===DrawMode.Select){
+            const stroke = strokes[action.id];
+            const b = apply_action(action,stroke);
+            stroke.bounds.x_min = b.x_min;
+            stroke.bounds.x_max = b.x_max;
+            stroke.bounds.y_min = b.y_min;
+            stroke.bounds.y_max = b.y_max;
+
+            strokes.splice(action.id,0,stroke);
+            strokes.push(stroke);
+        }
+        else{
+            strokes.push(action);
+        }
         recreate();
     }
 }
 //endregion
+
+function apply_action(action,stroke){
+    strokes.splice(action.id,1);
+    let x_min = canvas.width;
+    let x_max = 0;
+    let y_min = canvas.height;
+    let y_max = 0;
+    console.log(stroke);
+    switch (stroke.drawMode){
+        case DrawMode.Pencil:
+
+            for (let i = 0; i < stroke.coords.length; i++) {
+                const x = action.a*stroke.coords[i].x+action.b*stroke.coords[i].y + action.x_shift;
+                const y = action.c*stroke.coords[i].x+action.d*stroke.coords[i].y + action.y_shift;
+
+                stroke.coords[i].x = x;
+                stroke.coords[i].y = y;
+                x_min = Math.min(x,x_min);
+                x_max = Math.max(x_max,x);
+                y_min = Math.min(y,y_min);
+                y_max = Math.max(y,y_max);
+            }
+            stroke.bounds.x_min = x_min;
+            stroke.bounds.x_max = x_max;
+            stroke.bounds.y_min = y_min;
+            stroke.bounds.y_max = y_max;
+            break;
+        case DrawMode.Square:
+
+            const x1_sq = action.a*stroke.x1+action.b*stroke.y1 + action.x_shift;
+            const y1_sq = action.c*stroke.x1+action.d*stroke.y1 + action.y_shift;
+
+            stroke.x1 = x1_sq;
+            stroke.y1 = y1_sq;
+            x_min = Math.min(x1_sq,x_min);
+            x_max = Math.max(x_max,x1_sq);
+            y_min = Math.min(y1_sq,y_min);
+            y_max = Math.max(y1_sq,y_max);
+
+            const x2_sq = action.a*stroke.x2+action.b*stroke.y2 + action.x_shift;
+            const y2_sq = action.c*stroke.x2+action.d*stroke.y2 + action.y_shift;
+
+            stroke.x2 = x2_sq;
+            stroke.y2 = y2_sq;
+            x_min = Math.min(x2_sq,x_min);
+            x_max = Math.max(x_max,x2_sq);
+            y_min = Math.min(y2_sq,y_min);
+            y_max = Math.max(y2_sq,y_max);
+
+
+            const x3_sq = action.a*stroke.x3+action.b*stroke.y3 + action.x_shift;
+            const y3_sq = action.c*stroke.x3+action.d*stroke.y3 + action.y_shift;
+
+            stroke.x3 = x3_sq;
+            stroke.y3 = y3_sq;
+            x_min = Math.min(x3_sq,x_min);
+            x_max = Math.max(x_max,x3_sq);
+            y_min = Math.min(y3_sq,y_min);
+            y_max = Math.max(y3_sq,y_max);
+
+
+            const x4_sq = action.a*stroke.x4+action.b*stroke.y4 + action.x_shift;
+            const y4_sq = action.c*stroke.x4+action.d*stroke.y4 + action.y_shift;
+
+            stroke.x4 = x4_sq;
+            stroke.y4 = y4_sq;
+            x_min = Math.min(x4_sq,x_min);
+            x_max = Math.max(x_max,x4_sq);
+            y_min = Math.min(y4_sq,y_min);
+            y_max = Math.max(y4_sq,y_max);
+            break;
+        case DrawMode.Circle:
+
+            for (let i = 0; i < 2; i++) {
+                const x = action.a*stroke.coords[i].x+action.b*stroke.coords[i].y + action.x_shift;
+                const y = action.c*stroke.coords[i].x+action.d*stroke.coords[i].y + action.y_shift;
+
+                stroke.coords[i].x = x;
+                stroke.coords[i].y = y;
+            }
+            const x = (stroke.coords[0].x+stroke.coords[1].x)/2;
+            const y = (stroke.coords[0].y+stroke.coords[1].y)/2;
+            const r= Math.sqrt(Math.pow(stroke.coords[0].x-stroke.coords[1].x,2)+Math.pow(stroke.coords[0].y-stroke.coords[1].y,2))/2;
+
+            x_min = x-r;
+            x_max = x+r;
+            y_min = y-r;
+            y_max = y+r;
+            break;
+        case DrawMode.Dashed_Box:
+
+            const x1 = action.a*stroke.x1+action.b*stroke.y1 + action.x_shift;
+            const y1 = action.c*stroke.x1+action.d*stroke.y1 + action.y_shift;
+
+            stroke.x1 = x1;
+            stroke.y1 = y1;
+
+            const x2 = action.a*stroke.x2+action.b*stroke.y2 + action.x_shift;
+            const y2 = action.c*stroke.x2+action.d*stroke.y2 + action.y_shift;
+
+            stroke.x2 = x2;
+            stroke.y2 = y2;
+
+
+            const x3 = action.a*stroke.x3+action.b*stroke.y3 + action.x_shift;
+            const y3 = action.c*stroke.x3+action.d*stroke.y3 + action.y_shift;
+
+            stroke.x3 = x3;
+            stroke.y3 = y3;
+
+            const x4 = action.a*stroke.x4+action.b*stroke.y4 + action.x_shift;
+            const y4 = action.c*stroke.x4+action.d*stroke.y4 + action.y_shift;
+
+            stroke.x4 = x4;
+            stroke.y4 = y4;
+            break;
+    }
+    return {x_min,x_max,y_min,y_max}
+}
