@@ -798,7 +798,7 @@ function Redo(){
             stroke.bounds.y_min = b.y_min;
             stroke.bounds.y_max = b.y_max;
 
-            strokes.splice(action.id,1,stroke);
+            strokes.splice(action.id,1);
             strokes.push(stroke);
         }
         else{
