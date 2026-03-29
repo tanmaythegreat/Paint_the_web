@@ -46,6 +46,7 @@ preview_ctx.lineCap = "round"
 window.addEventListener("beforeunload",()=>{
     localStorage.setItem("redoes",JSON.stringify(redoes));
     localStorage.setItem("strokes",JSON.stringify(strokes));
+    localStorage.setItem("actions",JSON.stringify(actions));
     localStorage.setItem("bg-color",bg_picker.value);
 });
 let active = DrawMode.None;
@@ -105,6 +106,7 @@ permanent_clear_btn.addEventListener('click',()=>{
     redoes.length = 0;
     localStorage.removeItem('strokes');
     localStorage.removeItem('redoes');
+    localStorage.removeItem('actions');
     localStorage.removeItem('bg-color');
     recreate();
 })
@@ -373,7 +375,7 @@ function init_selection(event){
             draw(stroke,preview_ctx);
             draw(selection_box,preview_ctx);
             prevPosX = event.offsetX*scale_factorX;
-            prevPosY = event.offsetX*scale_factorY;
+            prevPosY = event.offsetY*scale_factorY;
             break;
         }
     }
@@ -382,8 +384,8 @@ function init_selection(event){
     console.log(selection_box)
 }
 function move_selection(event){
-    actions[actions.length-1].x_shift+=event.movementX;
-    actions[actions.length-1].y_shift+=event.movementY;
+    actions[actions.length-1].x_shift+=event.movementX*scale_factorX;
+    actions[actions.length-1].y_shift+=event.movementY*scale_factorY;
     const stroke = {...strokes[strokes.length-1]};
     const box = {...selection_box};
 
@@ -391,12 +393,14 @@ function move_selection(event){
     apply_action(actions[actions.length-1],box);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(stroke,preview_ctx);
+    draw(box,preview_ctx);
+    console.log("Move select")
 }
 function end_selection(event){
     move_selection(event);
-    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     apply_action(actions[actions.length-1],strokes[strokes.length-1]);
-    recreate();
+    preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
+    draw(strokes[strokes.length-1],ctx);
     active = DrawMode.None;
 }
 let prevPosX = 0;
@@ -410,20 +414,21 @@ function rotate_selection(event){
     prevPosY = event.offsetX*scale_factorY;
     const B = {x:prevPosX-centerX,y:prevPosY-centerY};
     const cos = (A.x*B.x+A.y*B.y)/(Math.sqrt(A.x*A.x+A.y*A.y)*Math.sqrt(B.x*B.x+B.y*B.y));
-    const sin = 1-cos*cos;
+    const sin = Math.sqrt(1-cos*cos);
 
     const a = a*cos-c*sin;
     const bB = b*cos-d*sin;
     const c = a*sin+c*cos;
     const d = b*sin+d*cos;
 
-    actions.a = a;
-    actions.b = bB;
-    actions.c = c;
-    actions.d = d;
+    const action = actions[actions.length-1];
+    action.a = a;
+    action.b = bB;
+    action.c = c;
+    action.d = d;
 
-    const stroke = {...strokes[stroke.length-1]};
-    apply_action(actions[actions.length-1],stroke);
+    const stroke = {...strokes[strokes.length-1]};
+    apply_action(action,stroke);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
     draw(stroke,preview_ctx);
 }
@@ -451,12 +456,12 @@ function draw(stroke,ctx){
             ctx.lineTo(stroke.x4,stroke.y4);
             ctx.closePath();
             ctx.stroke();
-            ctx.setLineDash([10,4]);
-            ctx.moveTo((stroke.x2+stroke.x3)/2,(stroke.y2+stroke.y3)/2);
-            ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
-            ctx.stroke();
-            ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.Pi*2);
-            ctx.fill()
+            // ctx.setLineDash([10,4]);
+            // ctx.moveTo((stroke.x2+stroke.x3)/2,(stroke.y2+stroke.y3)/2);
+            // ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
+            // ctx.stroke();
+            // ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.Pi*2);
+            // ctx.fill()
             break;
     }
 }
@@ -511,7 +516,7 @@ preview_canvas.addEventListener('mousemove',(e)=>{
             const box = {...selection_box};
             apply_action(actions[actions.length-1],box)
             if (Math.pow(((box.x2-box.x1)/10+(box.x2+box.x3)/2-e.offsetX),2)+Math.pow(((box.y2-box.y1)/10+(box.y2+box.y3)/2)-e.offsetY,2)<=R*R){
-                rotate_selection(e);
+                //rotate_selection(e);
             }
             else{
                 move_selection(e);
@@ -606,7 +611,7 @@ function recreate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     strokes.length = 0;
-    for (const stroke of actions) {
+    for (const stroke of strokes) {
         switch (stroke.drawMode) {
             case DrawMode.Pencil:
                 draw_pencil(stroke);
@@ -765,12 +770,10 @@ function Redo(){
 //endregion
 
 function apply_action(action,stroke){
-    strokes.splice(action.id,1);
     let x_min = canvas.width;
     let x_max = 0;
     let y_min = canvas.height;
     let y_max = 0;
-    console.log(stroke);
     switch (stroke.drawMode){
         case DrawMode.Pencil:
 
