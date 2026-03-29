@@ -28,6 +28,11 @@ const canvas = document.getElementById("canvas");
 const preview_canvas = document.getElementById("preview_canvas");
 const main = document.querySelector('main');
 
+canvas.style.width = (screen.width * 0.85) + 'px';
+canvas.style.height = (screen.height * 0.85) + 'px';
+
+preview_canvas.style.width = (screen.width * 0.85) + 'px';
+preview_canvas.style.height = (screen.height * 0.85) + 'px';
 canvas.width = Res * screen.width;
 canvas.height = Res * screen.height;
 
@@ -395,8 +400,8 @@ function move_selection(event){
 
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
 
+    // draw(stroke,preview_ctx);
     draw(box,preview_ctx);
-    draw(stroke,preview_ctx);
 
 }
 function end_selection(event){
@@ -417,7 +422,7 @@ function rotate_selection(event){
     prevPosY = event.offsetY*scale_factorY;
     const B = {x:prevPosX-centerX,y:prevPosY-centerY};
     const cos = (A.x*B.x+A.y*B.y)/(Math.sqrt(A.x*A.x+A.y*A.y)*Math.sqrt(B.x*B.x+B.y*B.y));
-    const sin = Math.sqrt(1-cos*cos);
+    const sin = Math.sqrt(1-cos*cos)*(A.x*B.y-B.x*A.y>0?1:-1);
 
     const action = actions[actions.length-1];
 
@@ -437,8 +442,8 @@ function rotate_selection(event){
     apply_action(action,stroke);
     apply_action(action,box);
     preview_ctx.clearRect(0,0,preview_canvas.width,preview_canvas.height);
-    draw(stroke,preview_ctx);
     draw(box,preview_ctx);
+    // draw(stroke,preview_ctx);
 }
 
 function draw(stroke,ctx){
@@ -456,7 +461,9 @@ function draw(stroke,ctx){
             draw_square(stroke,ctx);
             break;
         case DrawMode.Dashed_Box:
-            ctx.setLineDash([10,4]);
+            ctx.lineWidth = 10;
+            ctx.setLineDash([30,30]);
+            ctx.strokeStyle = '#7b69ed';
             ctx.beginPath();
             ctx.moveTo(stroke.x1,stroke.y1);
             ctx.lineTo(stroke.x2,stroke.y2);
@@ -468,11 +475,10 @@ function draw(stroke,ctx){
             ctx.lineTo((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2)
             ctx.stroke();
             ctx.beginPath();
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = '#7b69ed';
             ctx.arc((stroke.x2-stroke.x1)/10+(stroke.x2+stroke.x3)/2,(stroke.y2-stroke.y1)/10+(stroke.y2+stroke.y3)/2,R,0,Math.PI*2);
             ctx.closePath();
             ctx.fill()
-            ctx.setLineDash([]);
             break;
     }
 }
@@ -916,6 +922,9 @@ function apply_action(action,stroke){
 
             stroke.x4 = x4;
             stroke.y4 = y4;
+            break;
+        case DrawMode.Text:
+
             break;
     }
     return {x_min,x_max,y_min,y_max}

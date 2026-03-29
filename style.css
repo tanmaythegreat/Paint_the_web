@@ -102,8 +102,6 @@ h2, h3 {
 }
 
 canvas {
-    width: 85%;
-    height: 85%;
     margin: 16px;
     border-radius: 8px;
     position: absolute;
