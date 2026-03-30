@@ -143,6 +143,3 @@ canvas {
 .tb {
     background-color: transparent;
 }
-.tb:focus {
-    background-color: red;
-}
